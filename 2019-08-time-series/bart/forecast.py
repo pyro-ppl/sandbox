@@ -7,7 +7,6 @@ from functools import reduce
 
 import torch
 import torch.nn as nn
-from torch.distributions import constraints
 
 import pyro
 import pyro.distributions as dist
@@ -17,6 +16,7 @@ from pyro.optim import ClippedAdam
 
 
 # Work around slow lower_cholesky trnasform (.diag()....diag()).
+# Can be removed after https://github.com/pyro-ppl/pyro/pull/2007
 # to_lower_cholesky = transform_to(constraints.lower_cholesky)
 def to_lower_cholesky(x):
     return x.tril(-1) + x.diagonal(dim1=-2, dim2=-1).exp().diag_embed()
@@ -87,6 +87,10 @@ def unpack_params(data, schema):
     return result
 
 
+def rms(tensor):
+    return tensor.pow(2).mean().sqrt()
+
+
 class Model:
     def __init__(self, args, begin_epoch, end_epoch, num_stations, feature_dim):
         self.begin_epoch = begin_epoch
@@ -96,7 +100,7 @@ class Model:
         gate_rate_dim = num_stations ** 2 * 2
         self.schema = OrderedDict([
             ("init_loc", (state_dim,)),
-            ("init_scale_tril", (state_dim, state_dim)),
+            ("init_scale", (state_dim,)),
             ("trans_matrix", (state_dim, state_dim)),
             ("trans_loc", (state_dim,)),
             ("trans_scale_tril", (state_dim, state_dim)),
@@ -111,29 +115,41 @@ class Model:
             nn.Sigmoid(),
             nn.Linear(args.model_nn_dim, output_dim))
 
+
     def __call__(self, time_features, trip_counts):
         num_hours, num_origins, num_destins = trip_counts.shape
         assert num_origins == self.num_stations
         assert num_destins == self.num_stations
 
-        # Sample static parameters.
-        init_loc = pyro.param("init_loc", lambda: torch.zeros(args.state_dim))
-        init_scale_tril = pyro.param("init_scale_tril",
-                                     lambda: torch.eye(args.state_dim, args.state_dim),
-                                     constraint=constraints.lower_cholesky)
-        init_dist = dist.MultivariateNormal(init_loc, scale_tril=init_scale_tril)
-
-        # Sample time-varying parameters using a neural net.
+        # Sample parameters from the neural net.
         pyro.module("model_nn", self.nn)
         params = unpack_params(self.nn(time_features), self.schema)
+
+        init_loc = params["init_loc"][0]
+        init_scale_tril = bounded_exp(params["init_scale"][0]).diag_embed()
+        init_dist = dist.MultivariateNormal(init_loc, scale_tril=init_scale_tril)
+        assert init_dist.batch_shape == ()
+
         trans_matrix = params["trans_matrix"] + torch.eye(args.state_dim)
+        trans_loc = params["trans_loc"]
         trans_scale_tril = to_lower_cholesky(params["trans_scale_tril"])
-        trans_dist = dist.MultivariateNormal(params["trans_loc"],
-                                             scale_tril=trans_scale_tril)
+        trans_dist = dist.MultivariateNormal(trans_loc, scale_tril=trans_scale_tril)
+
         obs_matrix = params["obs_matrix"]
         obs_loc = params["obs_loc"]
         obs_scale = bounded_exp(params["obs_scale"])
         obs_dist = dist.Normal(obs_loc, obs_scale).to_event(1)
+
+        if logging.Logger(None).isEnabledFor(logging.DEBUG):
+            logging.debug("trans_matrix rms = {:0.5g}".format(rms(trans_matrix)))
+            logging.debug("trans_loc rms = {:0.5g}".format(rms(trans_loc)))
+            logging.debug("trans_scale_tril off_diag rms = {:0.5g}".format(
+                rms(trans_scale_tril.tril(-1))))
+            logging.debug("trans_scale_tril on_diag rms = {:0.5g}".format(
+                rms(trans_scale_tril.diagonal(dim1=-2, dim2=-1))))
+            logging.debug("obs_matrix rms = {:0.5g}".format(rms(obs_matrix)))
+            logging.debug("obs_loc rms = {:0.5g}".format(rms(obs_loc)))
+            logging.debug("obs_scale rms = {:0.5g}".format(rms(obs_scale)))
 
         # The model performs exact inference over a time-varying latent state.
         gate_rate = pyro.sample("gate_rate",
@@ -143,6 +159,10 @@ class Model:
         gate_rate = gate_rate.reshape(trip_counts.shape + (2,))
         gate = gate_rate[..., 0].sigmoid()
         rate = bounded_exp(gate_rate[..., 1])
+
+        if logging.Logger(None).isEnabledFor(logging.DEBUG):
+            logging.debug("gate mean = {:0.5g}".format(gate.mean()))
+            logging.debug("rate mean = {:0.5g}".format(rate.mean()))
 
         with pyro.plate("time", num_hours, dim=-3):
             with pyro.plate("origins", num_origins, dim=-2):
@@ -168,6 +188,7 @@ class Guide:
         pyro.sample("gate_rate", dist.Delta(gate_rate, event_dim=2))
 
 
+
 def make_minibatch(rows, begin_time, end_time, stations):
     time = rows[:, 0]
     rows = rows[(begin_time <= time) & (time < end_time)]
@@ -183,8 +204,8 @@ def train(args, dataset):
     begin_epoch = times.min().item()
     end_epoch = 1 + times.max().item()
     num_stations = len(dataset["stations"])
-    logging.debug("Training on {} stations in time range [{}, {})"
-                  .format(num_stations, begin_epoch, end_epoch))
+    logging.info("Training on {} stations in time range [{}, {})"
+                 .format(num_stations, begin_epoch, end_epoch))
     time_features = make_time_features(args, begin_epoch, end_epoch)
     feature_dim = time_features.size(-1)
 
@@ -201,10 +222,11 @@ def train(args, dataset):
             end_time = min(begin_time + args.batch_size, end_epoch)
             feature_batch = time_features[begin_time - begin_epoch:end_time - begin_epoch]
             trip_counts = make_minibatch(rows, begin_time, end_time, dataset["stations"])
-            loss = svi.step(feature_batch, trip_counts)
+            loss = svi.step(feature_batch, trip_counts) / trip_counts.numel()
             losses.append(loss)
             epoch_loss += loss
-        logging.info("epoch {} loss = {:0.4g}".format(epoch, loss))
+            logging.debug("batch_size = {}, loss = {:0.4g}".format(end_time - begin_time, loss))
+        logging.info("epoch {} loss = {:0.4g}".format(epoch, epoch_loss))
     return losses
 
 
@@ -227,7 +249,7 @@ if __name__ == "__main__":
                         help="size of hidden layer in guide net")
     parser.add_argument("-n", "--num-epochs", default=1001, type=int)
     parser.add_argument("-b", "--batch-size", default=400, type=int)
-    parser.add_argument("-lr", "--learning-rate", default=0.01, type=float)
+    parser.add_argument("-lr", "--learning-rate", default=0.005, type=float)
     parser.add_argument("--seed", default=123456789, type=int)
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
