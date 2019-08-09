@@ -9,11 +9,9 @@ from torch.distributions import constraints
 
 import pyro
 import pyro.distributions as dist
-from pyro import poutine
 from pyro.infer.autoguide import AutoDelta
 from pyro.infer import SVI, JitTraceEnum_ELBO, Trace_ELBO
 from pyro.optim import Adam
-from pdb import set_trace as bb
 
 logging.basicConfig(format='%(relativeCreated) 9d %(message)s', level=logging.INFO)
 
@@ -29,13 +27,14 @@ def model(data):
     h_{i+1} = mu + Phi(h_t - mu) + eta
 
     We do this in log space to convert multiplicative noise to additive noise
-    so we can use the GaussianHMM distribution.
+    so we can leverage the GaussianHMM distribution.
 
     log y_kt = h_kt / 2 + log <L_eps, delta_t>
             ~= h_kt / 2 + gamma_kt where gamma ~ MVN(0. sigma)
-    where we moment match to compute epsilon.
+    and we moment match to compute epsilon.
 
-    data.shape = (security, time_step, return)
+    :param data: Tensor of the shape ``(securities, timesteps, returns)``
+    :type data: torch.Tensor
     """
     hidden_dim = 4
     obs_dim = data.shape[-1]
@@ -62,7 +61,7 @@ def model(data):
 
 def sequential_model(num_samples=10, timesteps=100, hidden_dim=4, obs_dim=2):
     """
-    generate data of shape: (samples, timesteps, obs_dim)
+    Generate data of shape: (samples, timesteps, obs_dim)
     where the generative model is defined by:
         y = exp(h/2) * eps
         h_{t+1} = mu + Phi (h_t - mu) + eta_t
@@ -91,15 +90,6 @@ def sequential_model(num_samples=10, timesteps=100, hidden_dim=4, obs_dim=2):
     return data
 
 
-
-def visualize(data):
-#     plt.figure(figsize=(8, 3), dpi=100).patch.set_color('white')
-    sns.lineplot('exdate', 'impl_volatility', data=data, hue='ticker')
-    plt.tight_layout()
-#     plt.show()
-    plt.savefig('vol.png')
-
-
 def main(args):
     pyro.enable_validation(True)
     pyro.set_rng_seed(123)
@@ -115,7 +105,6 @@ def main(args):
     for k, v in pyro.get_param_store().items():
         print(k, v)
     # insert assert tests
-
 
 
 if __name__ == "__main__":
