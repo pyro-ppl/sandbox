@@ -86,10 +86,14 @@ def _load_hourly_od(args_basename):
 
 
 def load_hourly_od(args):
-    return multiprocessing.Pool().map(_load_hourly_od, [
+    datasets_by_year = multiprocessing.Pool().map(_load_hourly_od, [
         (args, basename)
         for basename in SOURCE_FILES
     ])
+    for dataset in datasets_by_year:
+        logging.info("Loaded data from {} stations, {} counts"
+                     .format(len(dataset["stations"]), len(dataset["rows"])))
+    return datasets_by_year
 
 
 def main(args):
