@@ -46,16 +46,16 @@ def model(data):
 
         L_eta = pyro.param('L_eta', torch.eye(hidden_dim), constraint=constraints.lower_cholesky)
         mu_eta = torch.zeros(hidden_dim)
-        trans_matrix = pyro.param('phi', torch.ones(hidden_dim, hidden_dim))
+        trans_matrix = pyro.param('phi', torch.ones(hidden_dim))
         # this gives us a zero matrix with phi on the diagonal
-        trans_matrix = trans_matrix.diag().diag()
-        trans_dist = dist.MultivariateNormal(mu_eta, scale_tril=L_eta)# .expand((timesteps,))
+        trans_matrix = trans_matrix.diag()
+        trans_dist = dist.MultivariateNormal(mu_eta, scale_tril=L_eta)
 
         mu_gamma  = pyro.param('mu_gamma', torch.zeros(obs_dim))
         L_gamma = pyro.param('sigma_gamma', torch.eye(obs_dim), constraint=constraints.lower_cholesky)
         obs_matrix = torch.eye(hidden_dim, obs_dim)
         # latent state is h_t - mu
-        obs_dist = dist.MultivariateNormal(-mu_gamma, scale_tril=L_gamma)# .expand((timesteps,))
+        obs_dist = dist.MultivariateNormal(-mu_gamma, scale_tril=L_gamma)
 
         pyro.sample('obs', dist.GaussianHMM(init_dist, trans_matrix, trans_dist, obs_matrix, obs_dist), obs=data)
 
@@ -100,18 +100,18 @@ def main(args):
     logging.debug(data.shape)
     # MAP estimation
     guide = AutoDelta(model)
-    svi = SVI(model, guide, Adam({'lr': 1e-2}), Trace_ELBO())
+    svi = SVI(model, guide, Adam({'lr': args.learning_rate}), Trace_ELBO())
     for i in range(args.num_epochs):
         loss = svi.step(data)
         logging.info(loss)
     for k, v in pyro.get_param_store().items():
         print(k, v)
-    # insert assert tests
 
 
 if __name__ == "__main__":
     assert pyro.__version__.startswith('0.3.4')
     parser = argparse.ArgumentParser(description="Stochastic volatility")
     parser.add_argument("-n", "--num-epochs", default=200, type=int)
+    parser.add_argument("-lr", "--learning-rate", default=1e-2, type=float)
     args = parser.parse_args()
     main(args)
