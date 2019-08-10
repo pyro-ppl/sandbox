@@ -115,7 +115,6 @@ class Model:
             nn.Sigmoid(),
             nn.Linear(args.model_nn_dim, output_dim))
 
-
     def __call__(self, time_features, trip_counts):
         num_hours, num_origins, num_destins = trip_counts.shape
         assert num_origins == self.num_stations
@@ -186,7 +185,6 @@ class Guide:
                               trip_counts.reshape(batch_shape + (-1,))], dim=-1)
         gate_rate = self.nn(nn_input)
         pyro.sample("gate_rate", dist.Delta(gate_rate, event_dim=2))
-
 
 
 def make_minibatch(rows, begin_time, end_time, stations):
