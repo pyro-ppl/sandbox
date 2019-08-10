@@ -4,6 +4,7 @@ import math
 import operator
 from collections import OrderedDict
 from functools import reduce
+from torch.distributions import constraints, transform_to
 
 import torch
 import torch.nn as nn
@@ -13,13 +14,6 @@ import pyro.distributions as dist
 from preprocess import load_hourly_od
 from pyro.infer import SVI, Trace_ELBO
 from pyro.optim import ClippedAdam
-
-
-# Work around slow lower_cholesky trnasform (.diag()....diag()).
-# Can be removed after https://github.com/pyro-ppl/pyro/pull/2007
-# to_lower_cholesky = transform_to(constraints.lower_cholesky)
-def to_lower_cholesky(x):
-    return x.tril(-1) + x.diagonal(dim1=-2, dim2=-1).exp().diag_embed()
 
 
 def inverse_sigmoid(y):
@@ -34,29 +28,18 @@ def bounded_log(y, bound=1e5):
     return inverse_sigmoid(y / bound) + math.log(bound)
 
 
-def _():
-    test = torch.randn(10)
-    assert (bounded_log(bounded_exp(test, 10), 10) - test).abs().max() < 1e-6
-
-
-_()
-
-
-def precision_to_scale_tril(P):
-    L_inv = P.flip((-2, -1)).cholesky().flip((-2, -1)).transpose(-2, -1)
-    L = torch.eye(P.size(-1)).triangular_solve(L_inv, upper=False).solution
-    return L
+test = torch.randn(10)
+assert (bounded_log(bounded_exp(test, 10), 10) - test).abs().max() < 1e-6
+del test
 
 
 def make_time_features(args, begin_time, end_time):
     time = torch.arange(begin_time, end_time, dtype=torch.float)
-    time_mod_day = time / 24 % 1 * (2 * math.pi)
     time_mod_week = time / (24 * 7) % 1. * (2 * math.pi)
     features = torch.cat([
-        make_seasonal_features(time_mod_day, order=12),
-        make_seasonal_features(time_mod_week, order=8),
-        make_trend_features(time, begin_time, end_time,
-                            bandwidth=24 * 7)
+        make_seasonal_features(time_mod_week, order=24 * 7),
+        make_global_trend_features(time, begin_time, end_time,
+                                   bandwidth=24 * 7)
     ], dim=-1)
     return features
 
@@ -67,7 +50,7 @@ def make_seasonal_features(signal, order):
                       torch.sin(angles)], dim=-1)
 
 
-def make_trend_features(signal, begin_time, end_time, bandwidth):
+def make_global_trend_features(signal, begin_time, end_time, bandwidth):
     num_points = int(math.ceil((end_time - begin_time) / bandwidth))
     logging.debug("Making {} global trend features".format(num_points))
     points = torch.linspace(begin_time, end_time, num_points)
@@ -131,7 +114,8 @@ class Model:
 
         trans_matrix = params["trans_matrix"] + torch.eye(args.state_dim)
         trans_loc = params["trans_loc"]
-        trans_scale_tril = to_lower_cholesky(params["trans_scale_tril"])
+        trans_scale_tril = transform_to(constraints.lower_cholesky)(
+            params["trans_scale_tril"])
         trans_dist = dist.MultivariateNormal(trans_loc, scale_tril=trans_scale_tril)
 
         obs_matrix = params["obs_matrix"]
@@ -140,15 +124,15 @@ class Model:
         obs_dist = dist.Normal(obs_loc, obs_scale).to_event(1)
 
         if logging.Logger(None).isEnabledFor(logging.DEBUG):
-            logging.debug("trans_matrix rms = {:0.5g}".format(rms(trans_matrix)))
-            logging.debug("trans_loc rms = {:0.5g}".format(rms(trans_loc)))
-            logging.debug("trans_scale_tril off_diag rms = {:0.5g}".format(
+            logging.debug("trans matrix rms (on, off diag) = {:0.5g}, {:0.5g}".format(
+                rms(trans_scale_tril.diagonal(dim1=-2, dim2=-1)),
                 rms(trans_scale_tril.tril(-1))))
-            logging.debug("trans_scale_tril on_diag rms = {:0.5g}".format(
-                rms(trans_scale_tril.diagonal(dim1=-2, dim2=-1))))
-            logging.debug("obs_matrix rms = {:0.5g}".format(rms(obs_matrix)))
-            logging.debug("obs_loc rms = {:0.5g}".format(rms(obs_loc)))
-            logging.debug("obs_scale rms = {:0.5g}".format(rms(obs_scale)))
+            logging.debug("trans scale_tril rms (on, off diag) = {:0.5g}, {:0.5g}".format(
+                rms(trans_scale_tril.diagonal(dim1=-2, dim2=-1)),
+                rms(trans_scale_tril.tril(-1))))
+            logging.debug("trans loc rms = {:0.5g}".format(rms(trans_loc)))
+            logging.debug("obs matrix, loc, scale rms = {:0.5g}, {:0.5g}, {:0.5g}"
+                          .format(rms(obs_matrix), rms(obs_loc), rms(obs_scale)))
 
         # The model performs exact inference over a time-varying latent state.
         gate_rate = pyro.sample("gate_rate",
@@ -160,8 +144,8 @@ class Model:
         rate = bounded_exp(gate_rate[..., 1])
 
         if logging.Logger(None).isEnabledFor(logging.DEBUG):
-            logging.debug("gate mean = {:0.5g}".format(gate.mean()))
-            logging.debug("rate mean = {:0.5g}".format(rate.mean()))
+            logging.debug("gate, rate mean = {:0.5g}, {:0.5g}"
+                          .format(gate.mean(), rate.mean()))
 
         with pyro.plate("time", num_hours, dim=-3):
             with pyro.plate("origins", num_origins, dim=-2):
@@ -202,8 +186,9 @@ def train(args, dataset):
     begin_epoch = times.min().item()
     end_epoch = 1 + times.max().item()
     num_stations = len(dataset["stations"])
-    logging.info("Training on {} stations in time range [{}, {})"
-                 .format(num_stations, begin_epoch, end_epoch))
+    logging.info("Training on {} stations in time range [{}, {}), {} batches/epoch"
+                 .format(num_stations, begin_epoch, end_epoch,
+                         int(math.ceil((end_epoch - begin_epoch) / args.batch_size))))
     time_features = make_time_features(args, begin_epoch, end_epoch)
     feature_dim = time_features.size(-1)
 
@@ -224,7 +209,12 @@ def train(args, dataset):
             losses.append(loss)
             epoch_loss += loss
             logging.debug("batch_size = {}, loss = {:0.4g}".format(end_time - begin_time, loss))
+            begin_time += args.batch_size
         logging.info("epoch {} loss = {:0.4g}".format(epoch, epoch_loss))
+
+    pyro.get_param_store().save(args.param_store_filename)
+    metadata = {"args": args, "losses": losses}
+    torch.save(metadata, args.training_filename)
     return losses
 
 
@@ -234,11 +224,17 @@ def main(args):
 
     datasets_by_year = load_hourly_od(args)
     dataset = datasets_by_year[0]
+    if args.truncate_hours:
+        dataset["rows"] = dataset["rows"][:args.truncate_hours]
     train(args, dataset)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="BART origin-destination forecast")
+    parser.add_argument("--param-store-filename", default="pyro_param_store.pkl")
+    parser.add_argument("--training-filename", default="training.pkl")
+    parser.add_argument("--truncate-hours", default="0", type=int,
+                        help="optionally truncate to a subset of hours")
     parser.add_argument("--state-dim", default="16", type=int,
                         help="size of HMM state space in model")
     parser.add_argument("--model-nn-dim", default="64", type=int,
@@ -247,7 +243,7 @@ if __name__ == "__main__":
                         help="size of hidden layer in guide net")
     parser.add_argument("-n", "--num-epochs", default=1001, type=int)
     parser.add_argument("-b", "--batch-size", default=400, type=int)
-    parser.add_argument("-lr", "--learning-rate", default=0.005, type=float)
+    parser.add_argument("-lr", "--learning-rate", default=0.002, type=float)
     parser.add_argument("--seed", default=123456789, type=int)
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
