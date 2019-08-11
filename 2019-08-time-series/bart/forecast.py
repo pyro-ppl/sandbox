@@ -4,16 +4,25 @@ import math
 import operator
 from collections import OrderedDict
 from functools import reduce
-from torch.distributions import constraints, transform_to
-
-import torch
-import torch.nn as nn
 
 import pyro
 import pyro.distributions as dist
-from preprocess import load_hourly_od
+import pyro.poutine as poutine
+import torch
+import torch.nn as nn
 from pyro.infer import SVI, Trace_ELBO
 from pyro.optim import ClippedAdam
+from torch.distributions import constraints, transform_to
+
+from preprocess import load_hourly_od
+
+
+def vm(vector, matrix):
+    return vector.unsqueeze(-2).matmul(matrix).squeeze(-2)
+
+
+def rms(tensor):
+    return tensor.pow(2).mean().sqrt()
 
 
 def inverse_sigmoid(y):
@@ -70,10 +79,6 @@ def unpack_params(data, schema):
     return result
 
 
-def rms(tensor):
-    return tensor.pow(2).mean().sqrt()
-
-
 class Model:
     def __init__(self, args, begin_epoch, end_epoch, num_stations, feature_dim):
         self.begin_epoch = begin_epoch
@@ -98,12 +103,10 @@ class Model:
             nn.Sigmoid(),
             nn.Linear(args.model_nn_dim, output_dim))
 
-    def __call__(self, time_features, trip_counts):
-        num_hours, num_origins, num_destins = trip_counts.shape
-        assert num_origins == self.num_stations
-        assert num_destins == self.num_stations
-
-        # Sample parameters from the neural net.
+    def _dynamics(self, time_features):
+        """
+        Sample dynamics model parameters from a neural net.
+        """
         pyro.module("model_nn", self.nn)
         params = unpack_params(self.nn(time_features), self.schema)
 
@@ -134,25 +137,63 @@ class Model:
             logging.debug("obs matrix, loc, scale rms = {:0.5g}, {:0.5g}, {:0.5g}"
                           .format(rms(obs_matrix), rms(obs_loc), rms(obs_scale)))
 
-        # The model performs exact inference over a time-varying latent state.
-        gate_rate = pyro.sample("gate_rate",
-                                dist.GaussianHMM(init_dist,
-                                                 trans_matrix, trans_dist,
-                                                 obs_matrix, obs_dist))
-        gate_rate = gate_rate.reshape(trip_counts.shape + (2,))
+        return init_dist, trans_matrix, trans_dist, obs_matrix, obs_dist
+
+    def _unpack_gate_rate(self, gate_rate):
+        gate_rate = gate_rate.reshape(
+            gate_rate.shape[:-1] + (self.num_stations, self.num_stations, 2))
         gate = gate_rate[..., 0].sigmoid()
         rate = bounded_exp(gate_rate[..., 1])
+        return gate, rate
 
-        if logging.Logger(None).isEnabledFor(logging.DEBUG):
-            logging.debug("gate, rate mean = {:0.5g}, {:0.5g}"
-                          .format(gate.mean(), rate.mean()))
+    def __call__(self, time_features, trip_counts):
+        total_hours = len(time_features)
+        observed_hours, num_origins, num_destins = trip_counts.shape
+        assert observed_hours <= total_hours
+        assert num_origins == self.num_stations
+        assert num_destins == self.num_stations
+        time_plate = pyro.plate("time", observed_hours, dim=-3)
+        origins_plate = pyro.plate("origins", num_origins, dim=-2)
+        destins_plate = pyro.plate("destins", num_destins, dim=-1)
 
-        with pyro.plate("time", num_hours, dim=-3):
-            with pyro.plate("origins", num_origins, dim=-2):
-                with pyro.plate("destins", num_destins, dim=-1):
-                    pyro.sample("trip_count",
-                                dist.ZeroInflatedPoisson(gate, rate),
-                                obs=trip_counts)
+        # The first half of the model performs exact inference over
+        # the observed portion of the time series.
+        hmm = dist.GaussianHMM(*self._dynamics(time_features[:observed_hours]))
+        gate_rate = pyro.sample("gate_rate", hmm)
+        gate, rate = self._unpack_gate_rate(gate_rate)
+        logging.debug("gate, rate mean = {:0.5g}, {:0.5g}"
+                      .format(gate.mean(), rate.mean()))
+        with time_plate, origins_plate, destins_plate:
+            pyro.sample("trip_count", dist.ZeroInflatedPoisson(gate, rate),
+                        obs=trip_counts)
+
+        # The second half of the model forecasts forward.
+        forecast = []
+        forecast_hours = total_hours - observed_hours
+        if forecast_hours > 0:
+            _, trans_matrix, trans_dist, obs_matrix, obs_dist = \
+                self._dynamics(time_features[observed_hours:])
+        state = None
+        for t in range(forecast_hours):
+            if state is None:  # on first step
+                state_dist = hmm.filter(trip_counts)
+            else:
+                loc = vm(state, trans_matrix[..., t, :, :]) + trans_dist.loc[..., t, :]
+                scale_tril = trans_dist.scale_tril[..., t, :, :]
+                state_dist = dist.MultivariateNormal(loc, scale_tril=scale_tril)
+            state = pyro.sample("state_{}".format(t), state_dist)
+
+            loc = vm(state, obs_matrix[..., t, :, :]) + obs_dist.loc[..., t, :]
+            scale = obs_dist.scale[..., t, :]
+            gate_rate = pyro.sample("gate_rate_{}".format(t),
+                                    dist.Normal(loc, scale).to_event(1))
+            gate, rate = self._unpack_gate_rate(gate_rate)
+
+            with origins_plate, destins_plate:
+                forecast.append(pyro.sample("trip_count_{}".format(t),
+                                            dist.ZeroInflatedPoisson(gate, rate)))
+
+        return forecast
 
 
 class Guide:
@@ -163,12 +204,21 @@ class Guide:
             nn.Linear(args.guide_nn_dim, num_stations ** 2 * 2))
 
     def __call__(self, time_features, trip_counts):
+        observed_hours = len(trip_counts)
         pyro.module("guide_mm", self.nn)
         batch_shape = trip_counts.shape[:-2]
-        nn_input = torch.cat([time_features,
+        nn_input = torch.cat([time_features[:observed_hours],
                               trip_counts.reshape(batch_shape + (-1,))], dim=-1)
         gate_rate = self.nn(nn_input)
         pyro.sample("gate_rate", dist.Delta(gate_rate, event_dim=2))
+
+
+@torch.no_grad()
+def forecast(model, guide, *args, **kwargs):
+    with poutine.trace() as tr:
+        guide(*args, **kwargs)
+    with poutine.replay(trace=tr.trace):
+        return model(*args, **kwargs)
 
 
 def make_minibatch(rows, begin_time, end_time, stations):
