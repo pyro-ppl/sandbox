@@ -102,20 +102,22 @@ class Model:
             nn.Linear(feature_dim, args.model_nn_dim),
             nn.Sigmoid(),
             nn.Linear(args.model_nn_dim, output_dim))
+        bias = unpack_params(self.nn[-1].bias.data, self.schema)
+        bias["trans_matrix"] += torch.eye(args.state_dim)
 
-    def _dynamics(self, time_features):
+    def _dynamics(self, features):
         """
         Sample dynamics model parameters from a neural net.
         """
         pyro.module("model_nn", self.nn)
-        params = unpack_params(self.nn(time_features), self.schema)
+        params = unpack_params(self.nn(features), self.schema)
 
         init_loc = params["init_loc"][0]
         init_scale_tril = bounded_exp(params["init_scale"][0]).diag_embed()
         init_dist = dist.MultivariateNormal(init_loc, scale_tril=init_scale_tril)
         assert init_dist.batch_shape == ()
 
-        trans_matrix = params["trans_matrix"] + torch.eye(args.state_dim)
+        trans_matrix = params["trans_matrix"]
         trans_loc = params["trans_loc"]
         trans_scale_tril = transform_to(constraints.lower_cholesky)(
             params["trans_scale_tril"])
@@ -146,8 +148,8 @@ class Model:
         rate = bounded_exp(gate_rate[..., 1])
         return gate, rate
 
-    def __call__(self, time_features, trip_counts):
-        total_hours = len(time_features)
+    def __call__(self, features, trip_counts):
+        total_hours = len(features)
         observed_hours, num_origins, num_destins = trip_counts.shape
         assert observed_hours <= total_hours
         assert num_origins == self.num_stations
@@ -158,7 +160,7 @@ class Model:
 
         # The first half of the model performs exact inference over
         # the observed portion of the time series.
-        hmm = dist.GaussianHMM(*self._dynamics(time_features[:observed_hours]))
+        hmm = dist.GaussianHMM(*self._dynamics(features[:observed_hours]))
         gate_rate = pyro.sample("gate_rate", hmm)
         gate, rate = self._unpack_gate_rate(gate_rate)
         logging.debug("gate, rate mean = {:0.5g}, {:0.5g}"
@@ -172,7 +174,7 @@ class Model:
         forecast_hours = total_hours - observed_hours
         if forecast_hours > 0:
             _, trans_matrix, trans_dist, obs_matrix, obs_dist = \
-                self._dynamics(time_features[observed_hours:])
+                self._dynamics(features[observed_hours:])
         state = None
         for t in range(forecast_hours):
             if state is None:  # on first step
@@ -203,11 +205,11 @@ class Guide:
             nn.Sigmoid(),
             nn.Linear(args.guide_nn_dim, num_stations ** 2 * 2))
 
-    def __call__(self, time_features, trip_counts):
+    def __call__(self, features, trip_counts):
         observed_hours = len(trip_counts)
         pyro.module("guide_mm", self.nn)
         batch_shape = trip_counts.shape[:-2]
-        nn_input = torch.cat([time_features[:observed_hours],
+        nn_input = torch.cat([features[:observed_hours],
                               trip_counts.reshape(batch_shape + (-1,))], dim=-1)
         gate_rate = self.nn(nn_input)
         pyro.sample("gate_rate", dist.Delta(gate_rate, event_dim=2))
@@ -240,7 +242,16 @@ def train(args, dataset):
                  .format(num_stations, begin_epoch, end_epoch,
                          int(math.ceil((end_epoch - begin_epoch) / args.batch_size))))
     time_features = make_time_features(args, begin_epoch, end_epoch)
-    feature_dim = time_features.size(-1)
+    control_features = torch.zeros(end_epoch - begin_epoch, num_stations)
+    origin = rows[:, 1]
+    control_features[times - begin_epoch, origin] = 1
+    logging.info("On average {:0.1f}/{} stations are open at any one time"
+                 .format(control_features.sum(-1).mean(), num_stations))
+    features = torch.cat([time_features, control_features], -1)
+    feature_dim = features.size(-1)
+    logging.info("feature_dim = {}".format(feature_dim))
+    metadata = {"args": args, "losses": [], "control": control_features}
+    torch.save(metadata, args.training_filename)
 
     model = Model(args, begin_epoch, end_epoch, num_stations, feature_dim)
     guide = Guide(args, num_stations, feature_dim)
@@ -253,7 +264,7 @@ def train(args, dataset):
         epoch_loss = 0.
         while begin_time < end_epoch:
             end_time = min(begin_time + args.batch_size, end_epoch)
-            feature_batch = time_features[begin_time - begin_epoch:end_time - begin_epoch]
+            feature_batch = features[begin_time - begin_epoch:end_time - begin_epoch]
             trip_counts = make_minibatch(rows, begin_time, end_time, dataset["stations"])
             loss = svi.step(feature_batch, trip_counts) / trip_counts.numel()
             losses.append(loss)
@@ -261,10 +272,10 @@ def train(args, dataset):
             logging.debug("batch_size = {}, loss = {:0.4g}".format(end_time - begin_time, loss))
             begin_time += args.batch_size
         logging.info("epoch {} loss = {:0.4g}".format(epoch, epoch_loss))
+        pyro.get_param_store().save(args.param_store_filename)
+        metadata = {"args": args, "losses": losses, "control": control_features}
+        torch.save(metadata, args.training_filename)
 
-    pyro.get_param_store().save(args.param_store_filename)
-    metadata = {"args": args, "losses": losses}
-    torch.save(metadata, args.training_filename)
     return losses
 
 

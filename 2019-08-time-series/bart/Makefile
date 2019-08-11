@@ -4,7 +4,10 @@ lint: FORCE
 	flake8
 
 test: lint FORCE
-	python forecast.py --truncate-hours 168 -n 1 -v
+	python forecast.py -n 1 -v \
+	  --truncate-hours=168 \
+	  --param-store-filename=/dev/null \
+	  --training-filename=/dev/null
 	@echo PASS
 
 FORCE:
