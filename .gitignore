@@ -4,16 +4,6 @@ run_outputs*
 data
 .data
 results
-examples/*/processed
-examples/*/results
-examples/*/raw
-examples/dmm/*.pkl
-examples/*.csv
-examples/mixed_hmm/*csv
-pyro/contrib/examples/processed
-pyro/contrib/examples/results
-pyro/contrib/examples/raw
-pyro/_version.py
 processed
 raw
 *.pkl

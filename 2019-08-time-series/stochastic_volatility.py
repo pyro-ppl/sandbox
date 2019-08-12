@@ -41,7 +41,6 @@ def model(data):
     """
     hidden_dim = 4
     obs_dim = data.shape[-1]
-    timesteps = data.shape[1]
     with pyro.plate(len(data)):
         mu = pyro.param('mu', torch.zeros(hidden_dim))
         L = pyro.param('L', torch.eye(hidden_dim), constraint=constraints.lower_cholesky)
@@ -82,7 +81,6 @@ def hmc_model(data):
     one = torch.ones(1)
     hidden_dim = 4
     obs_dim = data.shape[-1]
-    timesteps = data.shape[1]
     with pyro.plate(len(data)):
         mu = pyro.sample('mu', dist.Normal(torch.zeros(hidden_dim), torch.ones(hidden_dim)))
         theta = pyro.sample("theta", dist.HalfCauchy(torch.ones(hidden_dim)))
@@ -99,7 +97,7 @@ def hmc_model(data):
         trans_matrix = trans_matrix.diag()
         trans_dist = dist.MultivariateNormal(mu_eta, scale_tril=L_eta)
 
-        mu_gamma  = pyro.sample('mu_gamma', dist.Normal(torch.zeros(obs_dim), torch.ones(obs_dim)))
+        mu_gamma = pyro.sample('mu_gamma', dist.Normal(torch.zeros(obs_dim), torch.ones(obs_dim)))
         theta_gamma = pyro.sample("theta_gamma", dist.HalfCauchy(torch.ones(obs_dim)))
         L_gamma = pyro.sample('sigma_gamma', dist.LKJCorrCholesky(obs_dim, one))
         L_gamma = torch.mm(torch.diag(theta_gamma.sqrt()), L_gamma)
@@ -170,8 +168,6 @@ def main(args):
         for i in range(args.num_epochs):
             loss = svi.step(data)
             logging.info(loss)
-            if i % 10 == 1:
-                pdb.set_trace()
     for k, v in pyro.get_param_store().items():
         print(k, v)
 
