@@ -1,3 +1,36 @@
+run_outputs*
+.DS_Store
+.benchmarks
+data
+.data
+results
+examples/*/processed
+examples/*/results
+examples/*/raw
+examples/dmm/*.pkl
+examples/*.csv
+examples/mixed_hmm/*csv
+pyro/contrib/examples/processed
+pyro/contrib/examples/results
+pyro/contrib/examples/raw
+pyro/_version.py
+processed
+raw
+*.pkl
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+# dotenv environment variables file
+.env
+
+#ignore python
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -8,6 +41,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+env/
 build/
 develop-eggs/
 dist/
@@ -23,7 +57,6 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -41,11 +74,13 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
+.pytest_cache
 nosetests.xml
 coverage.xml
-*.cover
+*,cover
 .hypothesis/
-.pytest_cache/
+*.out
+adam.unittest.save
 
 # Translations
 *.mo
@@ -54,7 +89,6 @@ coverage.xml
 # Django stuff:
 *.log
 local_settings.py
-db.sqlite3
 
 # Flask stuff:
 instance/
@@ -64,7 +98,7 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+build/
 
 # PyBuilder
 target/
@@ -81,24 +115,23 @@ celerybeat-schedule
 # SageMath parsed files
 *.sage.py
 
-# Environments
+# dotenv
 .env
+
+# virtualenv
 .venv
-env/
 venv/
 ENV/
-env.bak/
-venv.bak/
 
-# Spyder project settings
+# IDE settings
 .spyderproject
-.spyproject
+.idea
 
 # Rope project settings
 .ropeproject
 
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
+# tmp files
+*.swn
+*.swo
+*.swp
+*~
