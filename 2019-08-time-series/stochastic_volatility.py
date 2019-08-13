@@ -39,8 +39,8 @@ def model(data):
     :param data: Tensor of the shape ``(securities, timesteps, returns)``
     :type data: torch.Tensor
     """
-    hidden_dim = 4
     obs_dim = data.shape[-1]
+    hidden_dim = obs_dim
     with pyro.plate(len(data)):
         mu = pyro.param('mu', torch.zeros(hidden_dim))
         L = pyro.param('L', torch.eye(hidden_dim), constraint=constraints.lower_cholesky)
@@ -108,7 +108,7 @@ def hmc_model(data):
         pyro.sample('obs', dist.GaussianHMM(init_dist, trans_matrix, trans_dist, obs_matrix, obs_dist), obs=data)
 
 
-def sequential_model(num_samples=10, timesteps=100, hidden_dim=4, obs_dim=2):
+def sequential_model(num_samples=1, timesteps=100, hidden_dim=4, obs_dim=4):
     """
     Generate data of shape: (samples, timesteps, obs_dim)
     where the generative model is defined by:
@@ -120,8 +120,8 @@ def sequential_model(num_samples=10, timesteps=100, hidden_dim=4, obs_dim=2):
     mu = torch.zeros(hidden_dim)
     cov = 0.2 * torch.eye(hidden_dim, hidden_dim)
     mu_obs = torch.zeros(obs_dim)
-    cov_obs = torch.eye(obs_dim, obs_dim)
-    transition = 0.2 * torch.randn(hidden_dim, hidden_dim)
+    cov_obs = 0.2 * torch.eye(obs_dim, obs_dim)
+    transition = 0.4 * torch.randn(hidden_dim, hidden_dim)
     # this is to generate data as the way model 2 does
     # we would use the entire transition matrix for model 3
     transition = transition.diag().diag().expand(num_samples, -1, -1)
