@@ -6,9 +6,9 @@ This is a series of three tutorials about time series forecasting in Pyro.
 
 ## Introduction
 
-- [Part 1. Pyro models](https://github.com/pyro-ppl/sandbox/tree/master/2019-08-time-series/part_i_models.ipynb)
-- [Part 2. Pyro inference algorithms](https://github.com/pyro-ppl/sandbox/pull/2)
-- Part 3. Custom inference
+- [Part 1. Pyro models](https://github.com/pyro-ppl/sandbox/blob/master/2019-08-time-series/part_i_models.ipynb)
+- [Part 2. Pyro inference algorithms](https://github.com/pyro-ppl/sandbox/blob/master/2019-08-time-series/part_ii_inference.ipynb)
+- [Part 3. Custom inference](https://github.com/pyro-ppl/sandbox/blob/master/2019-08-time-series/part_iii_custom.ipynb)
 
 ## Extended examples
 
