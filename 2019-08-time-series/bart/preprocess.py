@@ -10,7 +10,7 @@ import urllib
 
 import torch
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
 
 # https://www.bart.gov/about/reports/ridership
@@ -86,14 +86,44 @@ def _load_hourly_od(args_basename):
 
 
 def load_hourly_od(args):
-    datasets_by_year = multiprocessing.Pool().map(_load_hourly_od, [
+    filename = os.path.join(DATA, "full-counts.pkl")
+    if os.path.exists(filename):
+        return torch.load(filename)
+
+    datasets = multiprocessing.Pool().map(_load_hourly_od, [
         (args, basename)
         for basename in SOURCE_FILES
     ])
-    for dataset in datasets_by_year:
-        logging.info("Loaded data from {} stations, {} counts"
-                     .format(len(dataset["stations"]), len(dataset["rows"])))
-    return datasets_by_year
+
+    stations = sorted(set().union(*(d["stations"].keys() for d in datasets)))
+    min_time = min(int(d["rows"][:, 0].min()) for d in datasets)
+    max_time = max(int(d["rows"][:, 0].max()) for d in datasets)
+    num_rows = max_time - min_time + 1
+    start_date = datasets[0]["start_date"] + datetime.timedelta(hours=min_time),
+    logging.info("Loaded data from {} stations, {} hours"
+                 .format(len(stations), num_rows))
+
+    result = torch.zeros(num_rows, len(stations), len(stations))
+    for dataset in datasets:
+        part_stations = sorted(dataset["stations"], key=dataset["stations"].__getitem__)
+        part_to_whole = torch.tensor(list(map(stations.index, part_stations)))
+        time = dataset["rows"][:, 0] - min_time
+        origin = part_to_whole[dataset["rows"][:, 1]]
+        destin = part_to_whole[dataset["rows"][:, 2]]
+        count = dataset["rows"][:, 3].float()
+        result[time, origin, destin] = count
+        dataset.clear()
+    logging.info("Loaded {} shaped data of mean {:0.3g}"
+                 .format(result.shape, result.mean()))
+
+    dataset = {
+        "args": args,
+        "stations": stations,
+        "start_date": start_date,
+        "counts": result,
+    }
+    torch.save(dataset, filename)
+    return dataset
 
 
 def main(args):

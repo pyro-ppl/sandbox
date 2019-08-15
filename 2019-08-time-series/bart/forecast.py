@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 from pyro.infer import SVI, Trace_ELBO
 from pyro.optim import ClippedAdam
-from torch.distributions import constraints, transform_to
+from torch.distributions import constraints
 
 from preprocess import load_hourly_od
 
@@ -80,18 +80,13 @@ def unpack_params(data, schema):
 
 
 class Model:
-    def __init__(self, args, begin_epoch, end_epoch, num_stations, feature_dim):
-        self.begin_epoch = begin_epoch
-        self.end_epoch = end_epoch
+    def __init__(self, args, num_stations, feature_dim):
         self.num_stations = num_stations
         state_dim = args.state_dim
         gate_rate_dim = num_stations ** 2 * 2
         self.schema = OrderedDict([
             ("init_loc", (state_dim,)),
             ("init_scale", (state_dim,)),
-            ("trans_matrix", (state_dim, state_dim)),
-            ("trans_loc", (state_dim,)),
-            ("trans_scale_tril", (state_dim, state_dim)),
             ("obs_matrix", (state_dim, gate_rate_dim)),
             ("obs_loc", (gate_rate_dim,)),
             ("obs_scale", (gate_rate_dim,)),
@@ -102,12 +97,10 @@ class Model:
             nn.Linear(feature_dim, args.model_nn_dim),
             nn.Sigmoid(),
             nn.Linear(args.model_nn_dim, output_dim))
-        bias = unpack_params(self.nn[-1].bias.data, self.schema)
-        bias["trans_matrix"] += torch.eye(args.state_dim)
 
     def _dynamics(self, features):
         """
-        Sample dynamics model parameters from a neural net.
+        Compute dynamics parameters from time features.
         """
         pyro.module("model_nn", self.nn)
         params = unpack_params(self.nn(features), self.schema)
@@ -116,11 +109,12 @@ class Model:
         init_scale_tril = bounded_exp(params["init_scale"][0]).diag_embed()
         init_dist = dist.MultivariateNormal(init_loc, scale_tril=init_scale_tril)
         assert init_dist.batch_shape == ()
+        state_dim = init_loc.size(-1)
 
-        trans_matrix = params["trans_matrix"]
-        trans_loc = params["trans_loc"]
-        trans_scale_tril = transform_to(constraints.lower_cholesky)(
-            params["trans_scale_tril"])
+        trans_matrix = pyro.param("trans_matrix", 0.9 * torch.eye(state_dim))
+        trans_loc = torch.zeros(state_dim)
+        trans_scale_tril = pyro.param("trans_scale_tril", 0.1 * torch.eye(state_dim),
+                                      constraint=constraints.lower_cholesky)
         trans_dist = dist.MultivariateNormal(trans_loc, scale_tril=trans_scale_tril)
 
         obs_matrix = params["obs_matrix"]
@@ -129,13 +123,12 @@ class Model:
         obs_dist = dist.Normal(obs_loc, obs_scale).to_event(1)
 
         if logging.Logger(None).isEnabledFor(logging.DEBUG):
-            logging.debug("trans matrix rms (on, off diag) = {:0.5g}, {:0.5g}".format(
-                rms(trans_scale_tril.diagonal(dim1=-2, dim2=-1)),
-                rms(trans_scale_tril.tril(-1))))
-            logging.debug("trans scale_tril rms (on, off diag) = {:0.5g}, {:0.5g}".format(
-                rms(trans_scale_tril.diagonal(dim1=-2, dim2=-1)),
-                rms(trans_scale_tril.tril(-1))))
-            logging.debug("trans loc rms = {:0.5g}".format(rms(trans_loc)))
+            logging.debug("trans matrix rms (on, off diag) = {:0.5g}, {:0.5g}"
+                          .format(rms(trans_scale_tril.diagonal(dim1=-2, dim2=-1)),
+                                  rms(trans_scale_tril.tril(-1))))
+            logging.debug("trans scale_tril rms (on, off diag) = {:0.5g}, {:0.5g}"
+                          .format(rms(trans_scale_tril.diagonal(dim1=-2, dim2=-1)),
+                                  rms(trans_scale_tril.tril(-1))))
             logging.debug("obs matrix, loc, scale rms = {:0.5g}, {:0.5g}, {:0.5g}"
                           .format(rms(obs_matrix), rms(obs_loc), rms(obs_scale)))
 
@@ -200,17 +193,14 @@ class Model:
 
 class Guide:
     def __init__(self, args, num_stations, feature_dim):
-        self.nn = nn.Sequential(
-            nn.Linear(feature_dim + num_stations ** 2, args.guide_nn_dim),
-            nn.Sigmoid(),
-            nn.Linear(args.guide_nn_dim, num_stations ** 2 * 2))
+        self.nn = nn.Linear(feature_dim + num_stations ** 2, num_stations ** 2 * 2)
 
     def __call__(self, features, trip_counts):
         observed_hours = len(trip_counts)
         pyro.module("guide_mm", self.nn)
         batch_shape = trip_counts.shape[:-2]
         nn_input = torch.cat([features[:observed_hours],
-                              trip_counts.reshape(batch_shape + (-1,))], dim=-1)
+                              trip_counts.reshape(batch_shape + (-1,)).log1p()], dim=-1)
         gate_rate = self.nn(nn_input)
         pyro.sample("gate_rate", dist.Delta(gate_rate, event_dim=2))
 
@@ -233,18 +223,13 @@ def make_minibatch(rows, begin_time, end_time, stations):
 
 
 def train(args, dataset):
-    rows = dataset["rows"]
-    times = rows[:, 0]
-    begin_epoch = times.min().item()
-    end_epoch = 1 + times.max().item()
+    counts = dataset["counts"]
     num_stations = len(dataset["stations"])
-    logging.info("Training on {} stations in time range [{}, {}), {} batches/epoch"
-                 .format(num_stations, begin_epoch, end_epoch,
-                         int(math.ceil((end_epoch - begin_epoch) / args.batch_size))))
-    time_features = make_time_features(args, begin_epoch, end_epoch)
-    control_features = torch.zeros(end_epoch - begin_epoch, num_stations)
-    origin = rows[:, 1]
-    control_features[times - begin_epoch, origin] = 1
+    logging.info("Training on {} stations over {} hours, {} batches/epoch"
+                 .format(num_stations, len(counts),
+                         int(math.ceil(len(counts) / args.batch_size))))
+    time_features = make_time_features(args, 0, len(counts))
+    control_features = counts.max(1)[0].clamp(max=1)
     logging.info("On average {:0.1f}/{} stations are open at any one time"
                  .format(control_features.sum(-1).mean(), num_stations))
     features = torch.cat([time_features, control_features], -1)
@@ -253,20 +238,20 @@ def train(args, dataset):
     metadata = {"args": args, "losses": [], "control": control_features}
     torch.save(metadata, args.training_filename)
 
-    model = Model(args, begin_epoch, end_epoch, num_stations, feature_dim)
+    model = Model(args, num_stations, feature_dim)
     guide = Guide(args, num_stations, feature_dim)
     elbo = Trace_ELBO()
     optim = ClippedAdam({"lr": args.learning_rate})
     svi = SVI(model, guide, optim, elbo)
     losses = []
     for epoch in range(args.num_epochs):
-        begin_time = begin_epoch
+        begin_time = 0
         epoch_loss = 0.
-        while begin_time < end_epoch:
-            end_time = min(begin_time + args.batch_size, end_epoch)
-            feature_batch = features[begin_time - begin_epoch:end_time - begin_epoch]
-            trip_counts = make_minibatch(rows, begin_time, end_time, dataset["stations"])
-            loss = svi.step(feature_batch, trip_counts) / trip_counts.numel()
+        while begin_time < len(counts):
+            end_time = min(begin_time + args.batch_size, len(counts))
+            feature_batch = features[begin_time: end_time]
+            counts_batch = counts[begin_time: end_time]
+            loss = svi.step(feature_batch, counts_batch) / counts_batch.numel()
             losses.append(loss)
             epoch_loss += loss
             logging.debug("batch_size = {}, loss = {:0.4g}".format(end_time - begin_time, loss))
@@ -283,10 +268,9 @@ def main(args):
     pyro.enable_validation(__debug__)
     pyro.set_rng_seed(args.seed)
 
-    datasets_by_year = load_hourly_od(args)
-    dataset = datasets_by_year[0]
+    dataset = load_hourly_od(args)
     if args.truncate_hours:
-        dataset["rows"] = dataset["rows"][:args.truncate_hours]
+        dataset["counts"] = dataset["counts"][:args.truncate_hours]
     train(args, dataset)
 
 
@@ -300,8 +284,6 @@ if __name__ == "__main__":
                         help="size of HMM state space in model")
     parser.add_argument("--model-nn-dim", default="64", type=int,
                         help="size of hidden layer in model net")
-    parser.add_argument("--guide-nn-dim", default="64", type=int,
-                        help="size of hidden layer in guide net")
     parser.add_argument("-n", "--num-epochs", default=1001, type=int)
     parser.add_argument("-b", "--batch-size", default=400, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.002, type=float)
