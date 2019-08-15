@@ -158,31 +158,52 @@ class Model:
             with origins_plate, destins_plate:
                 forecast.append(pyro.sample("trip_count_{}".format(t),
                                             dist.ZeroInflatedPoisson(gate, rate)))
-
         return forecast
 
 
-class Guide:
+class Guide(nn.Module):
     def __init__(self, args, features, trip_counts):
+        super().__init__()
         feature_dim = features.size(-1)
         num_stations = trip_counts.size(-1)
-        self.nn = nn.Sequential(
-            nn.Linear(feature_dim + num_stations ** 2, args.guide_nn_dim),
-            nn.Sigmoid(),
-            nn.Linear(args.guide_nn_dim, num_stations ** 2 * 2 * 2))
-        self.nn[0].bias.data.fill_(0)
-        self.nn[2].bias.data.fill_(0)
 
-    def __call__(self, features, trip_counts):
+        if args.guide_window > 1:
+            window = args.guide_window
+            self.conv = nn.Conv1d(1, 1, window, bias=False,
+                                  padding=window - 1, padding_mode="same")
+            self.conv.weight.data.fill_(0)
+            self.conv.weight.data[..., -1] = 1
+
+        self.diag_part = torch.full((2 * 2, 1), 0.5, requires_grad=True)
+
+        if args.guide_rank:
+            self.lowrank = nn.Sequential(
+                nn.Linear(feature_dim + num_stations ** 2, args.guide_rank),
+                nn.Sigmoid(),
+                nn.Linear(args.guide_rank, num_stations ** 2 * 2 * 2))
+            self.lowrank[0].bias.data.fill_(0)
+            self.lowrank[2].bias.data.fill_(0)
+            self.lowrank[0].weight.data.normal_(0, 0.01 / self.lowrank[0].weight.size(-1) ** 0.5)
+            self.lowrank[2].weight.data.normal_(0, 0.01 / self.lowrank[2].weight.size(-1) ** 0.5)
+
+    def forward(self, features, trip_counts):
+        pyro.module("guide", self)
+        assert features.dim() == 2
+        assert trip_counts.dim() == 3
         observed_hours = len(trip_counts)
-        pyro.module("guide_nn", self.nn)
-        batch_shape = trip_counts.shape[:-2]
-        nn_input = torch.cat([features[:observed_hours],
-                              trip_counts.reshape(batch_shape + (-1,)).log1p()], dim=-1)
-        loc_scale = self.nn(nn_input)
-        split = int(loc_scale.size(-1)) // 2
-        loc = loc_scale[..., :split]
-        scale = bounded_exp(loc_scale[..., split:])
+        features = features[:observed_hours]
+
+        log_counts = trip_counts.reshape(observed_hours, -1).log1p()
+        if hasattr(self, "conv"):
+            log_counts = self.conv(log_counts.t().unsqueeze(-2)
+                                   ).squeeze(-2).t()[self.conv.padding[0]:]
+            logging.debug("conv.weight: {}".format(self.conv.weight.data.squeeze()))
+        loc_scale = (log_counts.unsqueeze(-2) * self.diag_part).reshape(observed_hours, -1)
+        if hasattr(self, "lowrank"):
+            loc_scale = loc_scale + self.lowrank(torch.cat([features, log_counts], dim=-1))
+
+        loc, scale = loc_scale.reshape(observed_hours, 2, -1).unbind(1)
+        scale = torch.nn.functional.softplus(scale)
         pyro.sample("gate_rate", dist.Normal(loc, scale).to_event(2))
 
 
@@ -231,10 +252,11 @@ def train(args, dataset):
         feature_batch = features[begin_time: end_time]
         counts_batch = counts[begin_time: end_time]
         loss = svi.step(feature_batch, counts_batch) / counts_batch.numel()
+        assert math.isfinite(loss), loss
         losses.append(loss)
         logging.debug("step {} loss = {:0.4g}".format(step, loss))
 
-        if step % 100 == 0:
+        if step % 20 == 0:
             pyro.get_param_store().save(args.param_store_filename)
             metadata = {"args": args, "losses": losses, "control": control_features}
             torch.save(metadata, args.training_filename)
@@ -261,10 +283,12 @@ if __name__ == "__main__":
                         help="size of HMM state space in model")
     parser.add_argument("--model-nn-dim", default="64", type=int,
                         help="size of hidden layer in model net")
-    parser.add_argument("--guide-nn-dim", default="64", type=int,
+    parser.add_argument("--guide-window", default="8", type=int,
+                        help="size of guide convolution window")
+    parser.add_argument("--guide-rank", default="8", type=int,
                         help="size of hidden layer in guide net")
     parser.add_argument("-n", "--num-steps", default=10001, type=int)
-    parser.add_argument("-b", "--batch-size", default=168, type=int)
+    parser.add_argument("-b", "--batch-size", default=256, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.002, type=float)
     parser.add_argument("--seed", default=123456789, type=int)
     parser.add_argument("-v", "--verbose", action="store_true")
