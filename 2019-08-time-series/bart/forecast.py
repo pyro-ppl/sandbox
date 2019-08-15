@@ -46,7 +46,7 @@ def make_time_features(args, begin_time, end_time):
     time = torch.arange(begin_time, end_time, dtype=torch.float)
     time_mod_week = time / (24 * 7) % 1. * (2 * math.pi)
     features = torch.cat([
-        make_seasonal_features(time_mod_week, order=24 * 7),
+        make_seasonal_features(time_mod_week, order=24 * 7 / 2),
         make_global_trend_features(time, begin_time, end_time,
                                    bandwidth=24 * 7)
     ], dim=-1)
@@ -97,6 +97,8 @@ class Model:
             nn.Linear(feature_dim, args.model_nn_dim),
             nn.Sigmoid(),
             nn.Linear(args.model_nn_dim, output_dim))
+        self.nn[0].bias.data.fill_(0)
+        self.nn[2].bias.data.fill_(0)
 
     def _dynamics(self, features):
         """
@@ -193,16 +195,24 @@ class Model:
 
 class Guide:
     def __init__(self, args, num_stations, feature_dim):
-        self.nn = nn.Linear(feature_dim + num_stations ** 2, num_stations ** 2 * 2)
+        self.nn = nn.Sequential(
+            nn.Linear(feature_dim + num_stations ** 2, args.guide_nn_dim),
+            nn.Sigmoid(),
+            nn.Linear(args.guide_nn_dim, num_stations ** 2 * 2 * 2))
+        self.nn[0].bias.data.fill_(0)
+        self.nn[2].bias.data.fill_(0)
 
     def __call__(self, features, trip_counts):
         observed_hours = len(trip_counts)
-        pyro.module("guide_mm", self.nn)
+        pyro.module("guide_nn", self.nn)
         batch_shape = trip_counts.shape[:-2]
         nn_input = torch.cat([features[:observed_hours],
                               trip_counts.reshape(batch_shape + (-1,)).log1p()], dim=-1)
-        gate_rate = self.nn(nn_input)
-        pyro.sample("gate_rate", dist.Delta(gate_rate, event_dim=2))
+        loc_scale = self.nn(nn_input)
+        split = int(loc_scale.size(-1)) // 2
+        loc = loc_scale[..., :split]
+        scale = bounded_exp(loc_scale[..., split:])
+        pyro.sample("gate_rate", dist.Normal(loc, scale).to_event(2))
 
 
 @torch.no_grad()
@@ -253,9 +263,10 @@ def train(args, dataset):
         losses.append(loss)
         logging.debug("step {} loss = {:0.4g}".format(step, loss))
 
-    pyro.get_param_store().save(args.param_store_filename)
-    metadata = {"args": args, "losses": losses, "control": control_features}
-    torch.save(metadata, args.training_filename)
+        if step % 100 == 0:
+            pyro.get_param_store().save(args.param_store_filename)
+            metadata = {"args": args, "losses": losses, "control": control_features}
+            torch.save(metadata, args.training_filename)
     return losses
 
 
@@ -275,12 +286,14 @@ if __name__ == "__main__":
     parser.add_argument("--training-filename", default="training.pkl")
     parser.add_argument("--truncate-hours", default="0", type=int,
                         help="optionally truncate to a subset of hours")
-    parser.add_argument("--state-dim", default="16", type=int,
+    parser.add_argument("--state-dim", default="8", type=int,
                         help="size of HMM state space in model")
     parser.add_argument("--model-nn-dim", default="64", type=int,
                         help="size of hidden layer in model net")
-    parser.add_argument("-n", "--num-steps", default=1001, type=int)
-    parser.add_argument("-b", "--batch-size", default=400, type=int)
+    parser.add_argument("--guide-nn-dim", default="64", type=int,
+                        help="size of hidden layer in guide net")
+    parser.add_argument("-n", "--num-steps", default=10001, type=int)
+    parser.add_argument("-b", "--batch-size", default=168, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.002, type=float)
     parser.add_argument("--seed", default=123456789, type=int)
     parser.add_argument("-v", "--verbose", action="store_true")
