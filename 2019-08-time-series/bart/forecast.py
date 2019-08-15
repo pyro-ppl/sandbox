@@ -244,23 +244,18 @@ def train(args, dataset):
     optim = ClippedAdam({"lr": args.learning_rate})
     svi = SVI(model, guide, optim, elbo)
     losses = []
-    for epoch in range(args.num_epochs):
-        begin_time = 0
-        epoch_loss = 0.
-        while begin_time < len(counts):
-            end_time = min(begin_time + args.batch_size, len(counts))
-            feature_batch = features[begin_time: end_time]
-            counts_batch = counts[begin_time: end_time]
-            loss = svi.step(feature_batch, counts_batch) / counts_batch.numel()
-            losses.append(loss)
-            epoch_loss += loss
-            logging.debug("batch_size = {}, loss = {:0.4g}".format(end_time - begin_time, loss))
-            begin_time += args.batch_size
-        logging.info("epoch {} loss = {:0.4g}".format(epoch, epoch_loss))
-        pyro.get_param_store().save(args.param_store_filename)
-        metadata = {"args": args, "losses": losses, "control": control_features}
-        torch.save(metadata, args.training_filename)
+    for step in range(args.num_steps):
+        begin_time = torch.randint(max(1, len(counts) - args.batch_size), ()).item()
+        end_time = min(len(counts), begin_time + args.batch_size)
+        feature_batch = features[begin_time: end_time]
+        counts_batch = counts[begin_time: end_time]
+        loss = svi.step(feature_batch, counts_batch) / counts_batch.numel()
+        losses.append(loss)
+        logging.debug("step {} loss = {:0.4g}".format(step, loss))
 
+    pyro.get_param_store().save(args.param_store_filename)
+    metadata = {"args": args, "losses": losses, "control": control_features}
+    torch.save(metadata, args.training_filename)
     return losses
 
 
@@ -284,7 +279,7 @@ if __name__ == "__main__":
                         help="size of HMM state space in model")
     parser.add_argument("--model-nn-dim", default="64", type=int,
                         help="size of hidden layer in model net")
-    parser.add_argument("-n", "--num-epochs", default=1001, type=int)
+    parser.add_argument("-n", "--num-steps", default=1001, type=int)
     parser.add_argument("-b", "--batch-size", default=400, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.002, type=float)
     parser.add_argument("--seed", default=123456789, type=int)
