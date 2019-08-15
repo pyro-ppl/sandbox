@@ -1,19 +1,14 @@
 import argparse
 import logging
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 import torch
 from torch.distributions import constraints
 
 import pyro
 import pyro.distributions as dist
 from pyro.infer.autoguide import AutoDelta, AutoMultivariateNormal
-from pyro.infer import SVI, JitTraceEnum_ELBO, Trace_ELBO
-from pyro.infer.mcmc.api import MCMC
-from pyro.infer.mcmc import NUTS
-from pyro.infer.mcmc.util import predictive, initialize_model
+from pyro.infer import SVI, Trace_ELBO
 from pyro.optim import Adam
 
 logging.basicConfig(format='%(relativeCreated) 9d %(message)s', level=logging.INFO)
@@ -54,7 +49,7 @@ def model(data):
         trans_matrix = trans_matrix.diag()
         trans_dist = dist.MultivariateNormal(mu_eta, scale_tril=L_eta)
 
-        mu_gamma  = pyro.param('mu_gamma', torch.zeros(obs_dim))
+        mu_gamma = pyro.param('mu_gamma', torch.zeros(obs_dim))
         L_gamma = pyro.param('L_gamma', 0.5 * torch.eye(obs_dim), constraint=constraints.lower_cholesky)
         obs_matrix = torch.eye(hidden_dim, obs_dim)
         # latent state is h_t - mu
