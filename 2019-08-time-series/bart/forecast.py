@@ -25,45 +25,17 @@ def rms(tensor):
     return tensor.pow(2).mean().sqrt()
 
 
-def inverse_sigmoid(y):
-    return y.log() - (-y).log1p()
-
-
 def bounded_exp(x, bound=1e5):
     return (x - math.log(bound)).sigmoid() * bound
-
-
-def bounded_log(y, bound=1e5):
-    return inverse_sigmoid(y / bound) + math.log(bound)
-
-
-test = torch.randn(10)
-assert (bounded_log(bounded_exp(test, 10), 10) - test).abs().max() < 1e-6
-del test
 
 
 def make_time_features(args, begin_time, end_time):
     time = torch.arange(begin_time, end_time, dtype=torch.float)
     time_mod_week = time / (24 * 7) % 1. * (2 * math.pi)
-    features = torch.cat([
-        make_seasonal_features(time_mod_week, order=24 * 7 / 2),
-        make_global_trend_features(time, begin_time, end_time,
-                                   bandwidth=24 * 7)
-    ], dim=-1)
-    return features
-
-
-def make_seasonal_features(signal, order):
-    angles = signal.unsqueeze(-1) * torch.arange(1., 1. + order)
+    order = 24 * 7 / 2
+    angles = time_mod_week.unsqueeze(-1) * torch.arange(1., 1. + order)
     return torch.cat([torch.cos(angles),
                       torch.sin(angles)], dim=-1)
-
-
-def make_global_trend_features(signal, begin_time, end_time, bandwidth):
-    num_points = int(math.ceil((end_time - begin_time) / bandwidth))
-    logging.debug("Making {} global trend features".format(num_points))
-    points = torch.linspace(begin_time, end_time, num_points)
-    return ((signal.unsqueeze(-1) - points) / bandwidth).sigmoid()
 
 
 def unpack_params(data, schema):
@@ -80,13 +52,14 @@ def unpack_params(data, schema):
 
 
 class Model:
-    def __init__(self, args, num_stations, feature_dim):
-        self.num_stations = num_stations
+    def __init__(self, args, features, trip_counts):
+        feature_dim = features.size(-1)
+        self.num_stations = trip_counts.size(-1)
+        self.state_dim = args.state_dim
+
         state_dim = args.state_dim
-        gate_rate_dim = num_stations ** 2 * 2
+        gate_rate_dim = self.num_stations ** 2 * 2
         self.schema = OrderedDict([
-            ("init_loc", (state_dim,)),
-            ("init_scale", (state_dim,)),
             ("obs_matrix", (state_dim, gate_rate_dim)),
             ("obs_loc", (gate_rate_dim,)),
             ("obs_scale", (gate_rate_dim,)),
@@ -106,33 +79,31 @@ class Model:
         """
         pyro.module("model_nn", self.nn)
         params = unpack_params(self.nn(features), self.schema)
+        state_dim = self.state_dim
 
-        init_loc = params["init_loc"][0]
-        init_scale_tril = bounded_exp(params["init_scale"][0]).diag_embed()
+        init_loc = torch.zeros(state_dim)
+        init_scale_tril = pyro.param("init_scale_diag", torch.ones(state_dim),
+                                     constraint=constraints.positive).diag_embed()
         init_dist = dist.MultivariateNormal(init_loc, scale_tril=init_scale_tril)
-        assert init_dist.batch_shape == ()
-        state_dim = init_loc.size(-1)
 
-        trans_matrix = pyro.param("trans_matrix", 0.9 * torch.eye(state_dim))
+        trans_matrix = pyro.param("trans_matrix", 0.99 * torch.eye(state_dim))
         trans_loc = torch.zeros(state_dim)
         trans_scale_tril = pyro.param("trans_scale_tril", 0.1 * torch.eye(state_dim),
                                       constraint=constraints.lower_cholesky)
         trans_dist = dist.MultivariateNormal(trans_loc, scale_tril=trans_scale_tril)
 
         obs_matrix = params["obs_matrix"]
+        obs_matrix = obs_matrix / obs_matrix.norm(dim=-1, keepdim=True)
         obs_loc = params["obs_loc"]
         obs_scale = bounded_exp(params["obs_scale"])
         obs_dist = dist.Normal(obs_loc, obs_scale).to_event(1)
 
         if logging.Logger(None).isEnabledFor(logging.DEBUG):
-            logging.debug("trans matrix rms (on, off diag) = {:0.5g}, {:0.5g}"
-                          .format(rms(trans_scale_tril.diagonal(dim1=-2, dim2=-1)),
+            logging.debug("trans mat/scale on/off diag rms: {:0.3g} {:0.3g} {:0.3g} {:0.3g}"
+                          .format(rms(trans_matrix.diagonal(dim1=-2, dim2=-1)),
+                                  rms(trans_matrix.tril(-1)),
+                                  rms(trans_scale_tril.diagonal(dim1=-2, dim2=-1)),
                                   rms(trans_scale_tril.tril(-1))))
-            logging.debug("trans scale_tril rms (on, off diag) = {:0.5g}, {:0.5g}"
-                          .format(rms(trans_scale_tril.diagonal(dim1=-2, dim2=-1)),
-                                  rms(trans_scale_tril.tril(-1))))
-            logging.debug("obs matrix, loc, scale rms = {:0.5g}, {:0.5g}, {:0.5g}"
-                          .format(rms(obs_matrix), rms(obs_loc), rms(obs_scale)))
 
         return init_dist, trans_matrix, trans_dist, obs_matrix, obs_dist
 
@@ -158,8 +129,6 @@ class Model:
         hmm = dist.GaussianHMM(*self._dynamics(features[:observed_hours]))
         gate_rate = pyro.sample("gate_rate", hmm)
         gate, rate = self._unpack_gate_rate(gate_rate)
-        logging.debug("gate, rate mean = {:0.5g}, {:0.5g}"
-                      .format(gate.mean(), rate.mean()))
         with time_plate, origins_plate, destins_plate:
             pyro.sample("trip_count", dist.ZeroInflatedPoisson(gate, rate),
                         obs=trip_counts)
@@ -194,7 +163,9 @@ class Model:
 
 
 class Guide:
-    def __init__(self, args, num_stations, feature_dim):
+    def __init__(self, args, features, trip_counts):
+        feature_dim = features.size(-1)
+        num_stations = trip_counts.size(-1)
         self.nn = nn.Sequential(
             nn.Linear(feature_dim + num_stations ** 2, args.guide_nn_dim),
             nn.Sigmoid(),
@@ -248,8 +219,8 @@ def train(args, dataset):
     metadata = {"args": args, "losses": [], "control": control_features}
     torch.save(metadata, args.training_filename)
 
-    model = Model(args, num_stations, feature_dim)
-    guide = Guide(args, num_stations, feature_dim)
+    model = Model(args, features, counts)
+    guide = Guide(args, features, counts)
     elbo = Trace_ELBO()
     optim = ClippedAdam({"lr": args.learning_rate})
     svi = SVI(model, guide, optim, elbo)
@@ -301,4 +272,9 @@ if __name__ == "__main__":
 
     logging.basicConfig(format='%(relativeCreated) 9d %(message)s',
                         level=logging.DEBUG if args.verbose else logging.INFO)
-    main(args)
+    try:
+        main(args)
+    except Exception as e:
+        print(e)
+        import pdb
+        pdb.post_mortem(e.__traceback__)
