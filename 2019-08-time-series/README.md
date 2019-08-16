@@ -4,7 +4,7 @@
 
 This is a series of three tutorials about time series forecasting in Pyro.
 
-## Introduction
+## Course material
 
 - [Overview slides](https://docs.google.com/presentation/d/1vZFRqvheo_qImvFedxQhNHSwm5vlrG82c2i2sU7dcyE/edit?usp=sharing)
 - [Part 1. Pyro models](https://github.com/pyro-ppl/sandbox/blob/master/2019-08-time-series/part_i_models.ipynb)
