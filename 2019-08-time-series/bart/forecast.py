@@ -161,15 +161,6 @@ def forecast(model, guide, *args, **kwargs):
         return model(*args, **kwargs)
 
 
-def make_minibatch(rows, begin_time, end_time, stations):
-    time = rows[:, 0]
-    rows = rows[(begin_time <= time) & (time < end_time)]
-    time, origin, destin, count = rows.t()
-    batch = torch.zeros(end_time - begin_time, len(stations), len(stations))
-    batch[time - begin_time, origin, destin] = count.float()
-    return batch
-
-
 def train(args, dataset):
     counts = dataset["counts"]
     num_stations = len(dataset["stations"])
