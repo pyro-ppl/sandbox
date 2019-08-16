@@ -1,9 +1,6 @@
 import argparse
 import logging
 import math
-import operator
-from collections import OrderedDict
-from functools import reduce
 
 import pyro
 import pyro.distributions as dist
@@ -34,19 +31,6 @@ def make_time_features(args, begin_time, end_time):
                       torch.sin(angles)], dim=-1)
 
 
-def unpack_params(data, schema):
-    assert isinstance(schema, OrderedDict)
-    batch_shape = data.shape[:-1]
-    offset = 0
-    result = {}
-    for name, shape in schema.items():
-        numel = reduce(operator.mul, shape)
-        chunk = data[..., offset: offset + numel]
-        result[name] = chunk.reshape(batch_shape + shape)
-        offset += numel
-    return result
-
-
 class Model(nn.Module):
     def __init__(self, args, features, trip_counts):
         super().__init__()
@@ -54,16 +38,10 @@ class Model(nn.Module):
         self.num_stations = trip_counts.size(-1)
         feature_dim = features.size(-1)
         gate_rate_dim = 2 * self.num_stations ** 2
-        self.schema = OrderedDict([
-            ("obs_loc", (gate_rate_dim,)),
-            ("obs_scale", (gate_rate_dim,)),
-        ])
-        output_dim = sum(reduce(operator.mul, shape)
-                         for shape in self.schema.values())
         self.nn = nn.Sequential(
             nn.Linear(feature_dim, args.model_nn_dim),
             nn.Sigmoid(),
-            nn.Linear(args.model_nn_dim, output_dim))
+            nn.Linear(args.model_nn_dim, 2 * gate_rate_dim))
         self.nn[0].bias.data.fill_(0)
         self.nn[2].bias.data.fill_(0)
 
@@ -71,7 +49,6 @@ class Model(nn.Module):
         """
         Compute dynamics parameters from time features.
         """
-        params = unpack_params(self.nn(features), self.schema)
         state_dim = self.args.state_dim
         gate_rate_dim = 2 * self.num_stations ** 2
 
@@ -88,9 +65,10 @@ class Model(nn.Module):
 
         obs_matrix = pyro.param("obs_matrix", torch.randn(state_dim, gate_rate_dim))
         obs_matrix.data /= obs_matrix.data.norm(dim=-1, keepdim=True)
-        obs_loc = params["obs_loc"]
-        obs_scale = bounded_exp(params["obs_scale"], bound=10.)
-        obs_dist = dist.Normal(obs_loc, obs_scale).to_event(1)
+        loc_scale = self.nn(features)
+        loc, scale = loc_scale.reshape(loc_scale.shape[:-1] + (2, gate_rate_dim)).unbind(-2)
+        scale = bounded_exp(scale, bound=10.)
+        obs_dist = dist.Normal(loc, scale).to_event(1)
 
         return init_dist, trans_matrix, trans_dist, obs_matrix, obs_dist
 
@@ -244,12 +222,13 @@ def train(args, dataset):
                 init_scale = pyro.param("init_scale").data
                 trans_scale = pyro.param("trans_scale").data
                 trans_matrix = pyro.param("trans_matrix").data
+                eigs = trans_matrix.eig()[0].norm(dim=-1).sort(descending=True).values
                 logging.debug("guide.diag_part = {}".format(guide.diag_part.data.squeeze()))
                 logging.debug("init scale min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
                               .format(init_scale.min(), init_scale.mean(), init_scale.max()))
                 logging.debug("trans scale min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
                               .format(trans_scale.min(), trans_scale.mean(), trans_scale.max()))
-                logging.debug("trans mat eig:\n{}".format(trans_matrix.eig()[0]))
+                logging.debug("trans mat eig:\n{}".format(eigs))
 
     return losses
 
