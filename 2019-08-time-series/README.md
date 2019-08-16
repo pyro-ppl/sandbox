@@ -13,7 +13,7 @@ This is a series of three tutorials about time series forecasting in Pyro.
 
 ## Extended examples
 
-- [BART ridership](https://github.com/pyro-ppl/sandbox/pull/3)
+- [BART ridership](https://github.com/pyro-ppl/sandbox/blob/master/2019-08-time-series/bart/forecast.ipynb)
 - [Stochastic volatility](https://github.com/pyro-ppl/sandbox/pull/4)
 
 ## Additional resources
