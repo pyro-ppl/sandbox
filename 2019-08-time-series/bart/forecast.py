@@ -72,7 +72,6 @@ class Model(nn.Module):
             nn.Linear(args.model_nn_dim, output_dim))
         self.nn[0].bias.data.fill_(0)
         self.nn[2].bias.data.fill_(0)
-        self.nn[-1].weight.data.mul_(0.1)
 
     def _dynamics(self, features):
         """
@@ -95,7 +94,7 @@ class Model(nn.Module):
         obs_matrix = params["obs_matrix"]
         obs_matrix = obs_matrix / obs_matrix.norm(dim=-1, keepdim=True)
         obs_loc = params["obs_loc"]
-        obs_scale = bounded_exp(params["obs_scale"])
+        obs_scale = torch.nn.functional.softplus(params["obs_scale"])
         obs_dist = dist.Normal(obs_loc, obs_scale).to_event(1)
 
         if logging.Logger(None).isEnabledFor(logging.DEBUG):
@@ -224,7 +223,8 @@ def train(args, dataset):
                  .format(num_stations, len(counts),
                          int(math.ceil(len(counts) / args.batch_size))))
     time_features = make_time_features(args, 0, len(counts))
-    control_features = counts.max(1)[0].clamp(max=1)
+    control_features = torch.cat([counts.max(1)[0].clamp(max=1),
+                                  counts.max(2)[0].clamp(max=1)], dim=-1)
     logging.info("On average {:0.1f}/{} stations are open at any one time"
                  .format(control_features.sum(-1).mean(), num_stations))
     features = torch.cat([time_features, control_features], -1)
@@ -236,7 +236,9 @@ def train(args, dataset):
     model = Model(args, features, counts)
     guide = Guide(args, features, counts)
     elbo = Trace_ELBO()
-    optim = ClippedAdam({"lr": args.learning_rate, "weight_decay": 0.5 ** 1e-3})
+    optim = ClippedAdam({"lr": args.learning_rate,
+                         "betas": (0.8, 0.99),
+                         "weight_decay": 0.5 ** 1e-3})
     svi = SVI(model, guide, optim, elbo)
     losses = []
     for step in range(args.num_steps):
