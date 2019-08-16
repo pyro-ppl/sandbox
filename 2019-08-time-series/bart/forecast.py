@@ -51,12 +51,12 @@ def unpack_params(data, schema):
     return result
 
 
-class Model:
+class Model(nn.Module):
     def __init__(self, args, features, trip_counts):
-        feature_dim = features.size(-1)
+        super().__init__()
+        self.args = args
         self.num_stations = trip_counts.size(-1)
-        self.state_dim = args.state_dim
-
+        feature_dim = features.size(-1)
         state_dim = args.state_dim
         gate_rate_dim = self.num_stations ** 2 * 2
         self.schema = OrderedDict([
@@ -72,14 +72,14 @@ class Model:
             nn.Linear(args.model_nn_dim, output_dim))
         self.nn[0].bias.data.fill_(0)
         self.nn[2].bias.data.fill_(0)
+        self.nn[-1].weight.data.mul_(0.1)
 
     def _dynamics(self, features):
         """
         Compute dynamics parameters from time features.
         """
-        pyro.module("model_nn", self.nn)
         params = unpack_params(self.nn(features), self.schema)
-        state_dim = self.state_dim
+        state_dim = self.args.state_dim
 
         init_loc = torch.zeros(state_dim)
         init_scale_tril = pyro.param("init_scale_diag", torch.ones(state_dim),
@@ -88,8 +88,8 @@ class Model:
 
         trans_matrix = pyro.param("trans_matrix", 0.99 * torch.eye(state_dim))
         trans_loc = torch.zeros(state_dim)
-        trans_scale_tril = pyro.param("trans_scale_tril", 0.1 * torch.eye(state_dim),
-                                      constraint=constraints.lower_cholesky)
+        trans_scale_tril = pyro.param("trans_scale", 0.1 * torch.ones(state_dim),
+                                      constraint=constraints.positive).diag_embed()
         trans_dist = dist.MultivariateNormal(trans_loc, scale_tril=trans_scale_tril)
 
         obs_matrix = params["obs_matrix"]
@@ -104,6 +104,11 @@ class Model:
                                   rms(trans_matrix.tril(-1)),
                                   rms(trans_scale_tril.diagonal(dim1=-2, dim2=-1)),
                                   rms(trans_scale_tril.tril(-1))))
+            # eig = trans_scale_tril.detach().eig()[0][:, 0]
+            # logging.debug("trans scale eig min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
+            #               .format(eig.min(), eig.mean(), eig.max()))
+            # logging.debug("obs scale min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
+            #               .format(obs_scale.min(), obs_scale.mean(), obs_scale.max()))
 
         return init_dist, trans_matrix, trans_dist, obs_matrix, obs_dist
 
@@ -114,7 +119,8 @@ class Model:
         rate = bounded_exp(gate_rate[..., 1])
         return gate, rate
 
-    def __call__(self, features, trip_counts):
+    def forward(self, features, trip_counts):
+        pyro.module("model", self)
         total_hours = len(features)
         observed_hours, num_origins, num_destins = trip_counts.shape
         assert observed_hours <= total_hours
@@ -132,6 +138,11 @@ class Model:
         with time_plate, origins_plate, destins_plate:
             pyro.sample("trip_count", dist.ZeroInflatedPoisson(gate, rate),
                         obs=trip_counts)
+
+        # DEBUG
+        for frame in pyro.poutine.runtime._PYRO_STACK:
+            if type(frame).__name__.startswith("Trace"):
+                frame.trace.compute_log_prob()
 
         # The second half of the model forecasts forward.
         forecast = []
@@ -166,42 +177,23 @@ class Guide(nn.Module):
         super().__init__()
         feature_dim = features.size(-1)
         num_stations = trip_counts.size(-1)
-
-        if args.guide_window > 1:
-            window = args.guide_window
-            self.conv = nn.Conv1d(1, 1, window, bias=False,
-                                  padding=window - 1, padding_mode="same")
-            self.conv.weight.data.fill_(0)
-            self.conv.weight.data[..., -1] = 1
-
-        self.diag_part = torch.full((2 * 2, 1), 0.5, requires_grad=True)
-
-        if args.guide_rank:
-            self.lowrank = nn.Sequential(
-                nn.Linear(feature_dim + num_stations ** 2, args.guide_rank),
-                nn.Sigmoid(),
-                nn.Linear(args.guide_rank, num_stations ** 2 * 2 * 2))
-            self.lowrank[0].bias.data.fill_(0)
-            self.lowrank[2].bias.data.fill_(0)
-            self.lowrank[0].weight.data.normal_(0, 0.01 / self.lowrank[0].weight.size(-1) ** 0.5)
-            self.lowrank[2].weight.data.normal_(0, 0.01 / self.lowrank[2].weight.size(-1) ** 0.5)
+        self.diag_part = nn.Parameter(torch.full((2 * 2, 1), 0.5))
+        self.lowrank = nn.Sequential(
+            nn.Linear(feature_dim + num_stations ** 2, args.guide_rank),
+            nn.Sigmoid(),
+            nn.Linear(args.guide_rank, num_stations ** 2 * 2 * 2))
+        self.lowrank[0].bias.data.fill_(0)
+        self.lowrank[2].bias.data.fill_(0)
+        self.lowrank[-1].weight.data.mul_(0.01)
 
     def forward(self, features, trip_counts):
         pyro.module("guide", self)
         assert features.dim() == 2
         assert trip_counts.dim() == 3
         observed_hours = len(trip_counts)
-        features = features[:observed_hours]
-
         log_counts = trip_counts.reshape(observed_hours, -1).log1p()
-        if hasattr(self, "conv"):
-            log_counts = self.conv(log_counts.t().unsqueeze(-2)
-                                   ).squeeze(-2).t()[self.conv.padding[0]:]
-            logging.debug("conv.weight: {}".format(self.conv.weight.data.squeeze()))
-        loc_scale = (log_counts.unsqueeze(-2) * self.diag_part).reshape(observed_hours, -1)
-        if hasattr(self, "lowrank"):
-            loc_scale = loc_scale + self.lowrank(torch.cat([features, log_counts], dim=-1))
-
+        loc_scale = ((self.diag_part * log_counts.unsqueeze(-2)).reshape(observed_hours, -1) +
+                     self.lowrank(torch.cat([features[:observed_hours], log_counts], dim=-1)))
         loc, scale = loc_scale.reshape(observed_hours, 2, -1).unbind(1)
         scale = torch.nn.functional.softplus(scale)
         pyro.sample("gate_rate", dist.Normal(loc, scale).to_event(2))
@@ -283,13 +275,11 @@ if __name__ == "__main__":
                         help="size of HMM state space in model")
     parser.add_argument("--model-nn-dim", default="64", type=int,
                         help="size of hidden layer in model net")
-    parser.add_argument("--guide-window", default="8", type=int,
-                        help="size of guide convolution window")
     parser.add_argument("--guide-rank", default="8", type=int,
                         help="size of hidden layer in guide net")
     parser.add_argument("-n", "--num-steps", default=10001, type=int)
     parser.add_argument("-b", "--batch-size", default=256, type=int)
-    parser.add_argument("-lr", "--learning-rate", default=0.002, type=float)
+    parser.add_argument("-lr", "--learning-rate", default=0.01, type=float)
     parser.add_argument("--seed", default=123456789, type=int)
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
