@@ -25,7 +25,7 @@ def rms(tensor):
     return tensor.pow(2).mean().sqrt()
 
 
-def bounded_exp(x, bound=1e5):
+def bounded_exp(x, bound=1e4):
     return (x - math.log(bound)).sigmoid() * bound
 
 
@@ -104,6 +104,7 @@ class Model(nn.Module):
                                   rms(trans_matrix.tril(-1)),
                                   rms(trans_scale_tril.diagonal(dim1=-2, dim2=-1)),
                                   rms(trans_scale_tril.tril(-1))))
+            # DEBUG
             # eig = trans_scale_tril.detach().eig()[0][:, 0]
             # logging.debug("trans scale eig min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
             #               .format(eig.min(), eig.mean(), eig.max()))
@@ -235,7 +236,7 @@ def train(args, dataset):
     model = Model(args, features, counts)
     guide = Guide(args, features, counts)
     elbo = Trace_ELBO()
-    optim = ClippedAdam({"lr": args.learning_rate})
+    optim = ClippedAdam({"lr": args.learning_rate, "weight_decay": 0.5 ** 1e-3})
     svi = SVI(model, guide, optim, elbo)
     losses = []
     for step in range(args.num_steps):
