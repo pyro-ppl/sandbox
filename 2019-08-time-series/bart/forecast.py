@@ -21,11 +21,7 @@ def vm(vector, matrix):
     return vector.unsqueeze(-2).matmul(matrix).squeeze(-2)
 
 
-def rms(tensor):
-    return tensor.pow(2).mean().sqrt()
-
-
-def bounded_exp(x, bound=1e4):
+def bounded_exp(x, bound):
     return (x - math.log(bound)).sigmoid() * bound
 
 
@@ -57,10 +53,8 @@ class Model(nn.Module):
         self.args = args
         self.num_stations = trip_counts.size(-1)
         feature_dim = features.size(-1)
-        state_dim = args.state_dim
-        gate_rate_dim = self.num_stations ** 2 * 2
+        gate_rate_dim = 2 * self.num_stations ** 2
         self.schema = OrderedDict([
-            ("obs_matrix", (state_dim, gate_rate_dim)),
             ("obs_loc", (gate_rate_dim,)),
             ("obs_scale", (gate_rate_dim,)),
         ])
@@ -79,9 +73,10 @@ class Model(nn.Module):
         """
         params = unpack_params(self.nn(features), self.schema)
         state_dim = self.args.state_dim
+        gate_rate_dim = 2 * self.num_stations ** 2
 
         init_loc = torch.zeros(state_dim)
-        init_scale_tril = pyro.param("init_scale_diag", torch.ones(state_dim),
+        init_scale_tril = pyro.param("init_scale", torch.full((state_dim,), 10.),
                                      constraint=constraints.positive).diag_embed()
         init_dist = dist.MultivariateNormal(init_loc, scale_tril=init_scale_tril)
 
@@ -91,32 +86,19 @@ class Model(nn.Module):
                                       constraint=constraints.positive).diag_embed()
         trans_dist = dist.MultivariateNormal(trans_loc, scale_tril=trans_scale_tril)
 
-        obs_matrix = params["obs_matrix"]
-        obs_matrix = obs_matrix / obs_matrix.norm(dim=-1, keepdim=True)
+        obs_matrix = pyro.param("obs_matrix", torch.randn(state_dim, gate_rate_dim))
+        obs_matrix.data /= obs_matrix.data.norm(dim=-1, keepdim=True)
         obs_loc = params["obs_loc"]
-        obs_scale = torch.nn.functional.softplus(params["obs_scale"])
+        obs_scale = bounded_exp(params["obs_scale"], bound=10.)
         obs_dist = dist.Normal(obs_loc, obs_scale).to_event(1)
-
-        if logging.Logger(None).isEnabledFor(logging.DEBUG):
-            logging.debug("trans mat/scale on/off diag rms: {:0.3g} {:0.3g} {:0.3g} {:0.3g}"
-                          .format(rms(trans_matrix.diagonal(dim1=-2, dim2=-1)),
-                                  rms(trans_matrix.tril(-1)),
-                                  rms(trans_scale_tril.diagonal(dim1=-2, dim2=-1)),
-                                  rms(trans_scale_tril.tril(-1))))
-            # DEBUG
-            # eig = trans_scale_tril.detach().eig()[0][:, 0]
-            # logging.debug("trans scale eig min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
-            #               .format(eig.min(), eig.mean(), eig.max()))
-            # logging.debug("obs scale min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
-            #               .format(obs_scale.min(), obs_scale.mean(), obs_scale.max()))
 
         return init_dist, trans_matrix, trans_dist, obs_matrix, obs_dist
 
     def _unpack_gate_rate(self, gate_rate):
-        gate_rate = gate_rate.reshape(
-            gate_rate.shape[:-1] + (self.num_stations, self.num_stations, 2))
-        gate = gate_rate[..., 0].sigmoid()
-        rate = bounded_exp(gate_rate[..., 1])
+        n = self.num_stations
+        gate, rate = gate_rate.reshape(gate_rate.shape[:-1] + (2, n, n)).unbind(-3)
+        gate = gate.sigmoid()
+        rate = bounded_exp(rate, bound=1e4)
         return gate, rate
 
     def forward(self, features, trip_counts):
@@ -138,11 +120,6 @@ class Model(nn.Module):
         with time_plate, origins_plate, destins_plate:
             pyro.sample("trip_count", dist.ZeroInflatedPoisson(gate, rate),
                         obs=trip_counts)
-
-        # DEBUG
-        for frame in pyro.poutine.runtime._PYRO_STACK:
-            if type(frame).__name__.startswith("Trace"):
-                frame.trace.compute_log_prob()
 
         # The second half of the model forecasts forward.
         forecast = []
@@ -177,14 +154,13 @@ class Guide(nn.Module):
         super().__init__()
         feature_dim = features.size(-1)
         num_stations = trip_counts.size(-1)
-        self.diag_part = nn.Parameter(torch.full((2 * 2, 1), 0.5))
+        self.diag_part = nn.Parameter(torch.zeros(2 * 2, 1))
         self.lowrank = nn.Sequential(
             nn.Linear(feature_dim + num_stations ** 2, args.guide_rank),
             nn.Sigmoid(),
-            nn.Linear(args.guide_rank, num_stations ** 2 * 2 * 2))
+            nn.Linear(args.guide_rank, 2 * 2 * num_stations ** 2))
         self.lowrank[0].bias.data.fill_(0)
         self.lowrank[2].bias.data.fill_(0)
-        self.lowrank[-1].weight.data.mul_(0.01)
 
     def forward(self, features, trip_counts):
         pyro.module("guide", self)
@@ -195,7 +171,7 @@ class Guide(nn.Module):
         loc_scale = ((self.diag_part * log_counts.unsqueeze(-2)).reshape(observed_hours, -1) +
                      self.lowrank(torch.cat([features[:observed_hours], log_counts], dim=-1)))
         loc, scale = loc_scale.reshape(observed_hours, 2, -1).unbind(1)
-        scale = torch.nn.functional.softplus(scale)
+        scale = bounded_exp(scale, bound=10.)
         pyro.sample("gate_rate", dist.Normal(loc, scale).to_event(2))
 
 
@@ -233,12 +209,20 @@ def train(args, dataset):
     metadata = {"args": args, "losses": [], "control": control_features}
     torch.save(metadata, args.training_filename)
 
+    def optim_config(module_name, param_name):
+        config = {
+            "lr": args.learning_rate,
+            "betas": (0.8, 0.99),
+            "weight_decay": 0.5 ** 1e-2,
+        }
+        if param_name == "init_scale":
+            config["lr"] *= 0.1  # init_dist sees much less data per minibatch
+        return config
+
     model = Model(args, features, counts)
     guide = Guide(args, features, counts)
     elbo = Trace_ELBO()
-    optim = ClippedAdam({"lr": args.learning_rate,
-                         "betas": (0.8, 0.99),
-                         "weight_decay": 0.5 ** 1e-3})
+    optim = ClippedAdam(optim_config)
     svi = SVI(model, guide, optim, elbo)
     losses = []
     for step in range(args.num_steps):
@@ -255,6 +239,18 @@ def train(args, dataset):
             pyro.get_param_store().save(args.param_store_filename)
             metadata = {"args": args, "losses": losses, "control": control_features}
             torch.save(metadata, args.training_filename)
+
+            if logging.Logger(None).isEnabledFor(logging.DEBUG):
+                init_scale = pyro.param("init_scale").data
+                trans_scale = pyro.param("trans_scale").data
+                trans_matrix = pyro.param("trans_matrix").data
+                logging.debug("guide.diag_part = {}".format(guide.diag_part.data.squeeze()))
+                logging.debug("init scale min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
+                              .format(init_scale.min(), init_scale.mean(), init_scale.max()))
+                logging.debug("trans scale min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
+                              .format(trans_scale.min(), trans_scale.mean(), trans_scale.max()))
+                logging.debug("trans mat eig:\n{}".format(trans_matrix.eig()[0]))
+
     return losses
 
 
@@ -280,9 +276,9 @@ if __name__ == "__main__":
                         help="size of hidden layer in model net")
     parser.add_argument("--guide-rank", default="8", type=int,
                         help="size of hidden layer in guide net")
-    parser.add_argument("-n", "--num-steps", default=10001, type=int)
+    parser.add_argument("-n", "--num-steps", default=501, type=int)
     parser.add_argument("-b", "--batch-size", default=24 * 7 * 2, type=int)
-    parser.add_argument("-lr", "--learning-rate", default=0.02, type=float)
+    parser.add_argument("-lr", "--learning-rate", default=0.05, type=float)
     parser.add_argument("--seed", default=123456789, type=int)
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
