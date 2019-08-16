@@ -278,8 +278,8 @@ if __name__ == "__main__":
     parser.add_argument("--guide-rank", default="8", type=int,
                         help="size of hidden layer in guide net")
     parser.add_argument("-n", "--num-steps", default=10001, type=int)
-    parser.add_argument("-b", "--batch-size", default=256, type=int)
-    parser.add_argument("-lr", "--learning-rate", default=0.01, type=float)
+    parser.add_argument("-b", "--batch-size", default=24 * 7 * 2, type=int)
+    parser.add_argument("-lr", "--learning-rate", default=0.02, type=float)
     parser.add_argument("--seed", default=123456789, type=int)
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
