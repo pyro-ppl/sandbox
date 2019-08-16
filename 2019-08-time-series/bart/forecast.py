@@ -1,4 +1,3 @@
-import argparse
 import logging
 import math
 
@@ -10,8 +9,6 @@ import torch.nn as nn
 from pyro.infer import SVI, Trace_ELBO
 from pyro.optim import ClippedAdam
 from torch.distributions import constraints
-
-from preprocess import load_hourly_od
 
 
 def vm(vector, matrix):
@@ -108,15 +105,15 @@ class Model(nn.Module):
         state = None
         for t in range(forecast_hours):
             if state is None:  # on first step
-                state_dist = hmm.filter(trip_counts)
+                state_dist = hmm.filter(gate_rate)
             else:
-                loc = vm(state, trans_matrix[..., t, :, :]) + trans_dist.loc[..., t, :]
-                scale_tril = trans_dist.scale_tril[..., t, :, :]
+                loc = vm(state, trans_matrix) + trans_dist.loc
+                scale_tril = trans_dist.scale_tril
                 state_dist = dist.MultivariateNormal(loc, scale_tril=scale_tril)
             state = pyro.sample("state_{}".format(t), state_dist)
 
-            loc = vm(state, obs_matrix[..., t, :, :]) + obs_dist.loc[..., t, :]
-            scale = obs_dist.scale[..., t, :]
+            loc = vm(state, obs_matrix) + obs_dist.base_dist.loc[..., t, :]
+            scale = obs_dist.base_dist.scale[..., t, :]
             gate_rate = pyro.sample("gate_rate_{}".format(t),
                                     dist.Normal(loc, scale).to_event(1))
             gate, rate = self._unpack_gate_rate(gate_rate)
@@ -153,14 +150,6 @@ class Guide(nn.Module):
         pyro.sample("gate_rate", dist.Normal(loc, scale).to_event(2))
 
 
-@torch.no_grad()
-def forecast(model, guide, *args, **kwargs):
-    with poutine.trace() as tr:
-        guide(*args, **kwargs)
-    with poutine.replay(trace=tr.trace):
-        return model(*args, **kwargs)
-
-
 def train(args, dataset):
     counts = dataset["counts"]
     num_stations = len(dataset["stations"])
@@ -168,8 +157,7 @@ def train(args, dataset):
                  .format(num_stations, len(counts),
                          int(math.ceil(len(counts) / args.batch_size))))
     time_features = make_time_features(args, 0, len(counts))
-    control_features = torch.cat([counts.max(1)[0].clamp(max=1),
-                                  counts.max(2)[0].clamp(max=1)], dim=-1)
+    control_features = (counts.max(1)[0] + counts.max(2)[0]).clamp(max=1)
     logging.info("On average {:0.1f}/{} stations are open at any one time"
                  .format(control_features.sum(-1).mean(), num_stations))
     features = torch.cat([time_features, control_features], -1)
@@ -188,15 +176,18 @@ def train(args, dataset):
             config["lr"] *= 0.1  # init_dist sees much less data per minibatch
         return config
 
-    model = Model(args, features, counts)
-    guide = Guide(args, features, counts)
+    training_counts = counts[:args.truncate] if args.truncate else counts
+    data_size = len(training_counts)
+    model = Model(args, features, training_counts)
+    guide = Guide(args, features, training_counts)
     elbo = Trace_ELBO()
     optim = ClippedAdam(optim_config)
     svi = SVI(model, guide, optim, elbo)
     losses = []
+    forecaster = None
     for step in range(args.num_steps):
-        begin_time = torch.randint(max(1, len(counts) - args.batch_size), ()).item()
-        end_time = min(len(counts), begin_time + args.batch_size)
+        begin_time = torch.randint(max(1, data_size - args.batch_size), ()).item()
+        end_time = min(data_size, begin_time + args.batch_size)
         feature_batch = features[begin_time: end_time]
         counts_batch = counts[begin_time: end_time]
         loss = svi.step(feature_batch, counts_batch) / counts_batch.numel()
@@ -208,6 +199,8 @@ def train(args, dataset):
             pyro.get_param_store().save(args.param_store_filename)
             metadata = {"args": args, "losses": losses, "control": control_features}
             torch.save(metadata, args.training_filename)
+            forecaster = Forecaster(args, dataset, features, model, guide)
+            torch.save(forecaster, args.forecaster_filename)
 
             if logging.Logger(None).isEnabledFor(logging.DEBUG):
                 init_scale = pyro.param("init_scale").data
@@ -221,43 +214,31 @@ def train(args, dataset):
                               .format(trans_scale.min(), trans_scale.mean(), trans_scale.max()))
                 logging.debug("trans mat eig:\n{}".format(eigs))
 
-    return losses
+    return forecaster
 
 
-def main(args):
-    pyro.enable_validation(__debug__)
-    pyro.set_rng_seed(args.seed)
+class Forecaster:
+    def __init__(self, args, dataset, features, model, guide):
+        assert len(features) == len(dataset["counts"])
+        self.args = args
+        self.dataset = dataset
+        self.counts = dataset["counts"]
+        self.features = features
+        self.model = model
+        self.guide = guide
 
-    dataset = load_hourly_od(args)
-    if args.truncate_hours:
-        dataset["counts"] = dataset["counts"][:args.truncate_hours]
-    train(args, dataset)
+    @torch.no_grad()
+    def __call__(self, window_begin, window_end, forecast_hours, num_samples=None):
+        if num_samples is not None:
+            return torch.stack([self(window_begin, window_end, forecast_hours)
+                                for _ in range(num_samples)])
 
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="BART origin-destination forecast")
-    parser.add_argument("--param-store-filename", default="pyro_param_store.pkl")
-    parser.add_argument("--training-filename", default="training.pkl")
-    parser.add_argument("--truncate-hours", default="0", type=int,
-                        help="optionally truncate to a subset of hours")
-    parser.add_argument("--state-dim", default="8", type=int,
-                        help="size of HMM state space in model")
-    parser.add_argument("--model-nn-dim", default="64", type=int,
-                        help="size of hidden layer in model net")
-    parser.add_argument("--guide-rank", default="8", type=int,
-                        help="size of hidden layer in guide net")
-    parser.add_argument("-n", "--num-steps", default=501, type=int)
-    parser.add_argument("-b", "--batch-size", default=24 * 7 * 2, type=int)
-    parser.add_argument("-lr", "--learning-rate", default=0.05, type=float)
-    parser.add_argument("--seed", default=123456789, type=int)
-    parser.add_argument("-v", "--verbose", action="store_true")
-    args = parser.parse_args()
-
-    logging.basicConfig(format='%(relativeCreated) 9d %(message)s',
-                        level=logging.DEBUG if args.verbose else logging.INFO)
-    try:
-        main(args)
-    except Exception as e:
-        print(e)
-        import pdb
-        pdb.post_mortem(e.__traceback__)
+        assert 0 <= window_begin < window_end < window_end + forecast_hours <= len(self.counts)
+        features = self.features[window_begin: window_end + forecast_hours]
+        counts = self.counts[window_begin: window_end]
+        with poutine.trace() as tr:
+            self.guide(features, counts)
+        with poutine.replay(trace=tr.trace):
+            forecast = self.model(features, counts)
+        assert len(forecast) == forecast_hours
+        return torch.stack(forecast)
