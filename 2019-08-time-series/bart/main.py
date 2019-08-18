@@ -34,7 +34,7 @@ if __name__ == "__main__":
                         help="size of hidden layer in model net")
     parser.add_argument("--guide-rank", default="8", type=int,
                         help="size of hidden layer in guide net")
-    parser.add_argument("-n", "--num-steps", default=501, type=int)
+    parser.add_argument("-n", "--num-steps", default=1001, type=int)
     parser.add_argument("-b", "--batch-size", default=24 * 7 * 2, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.05, type=float)
     parser.add_argument("--seed", default=123456789, type=int)
