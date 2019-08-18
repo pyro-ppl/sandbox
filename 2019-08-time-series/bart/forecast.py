@@ -69,9 +69,13 @@ class Model(nn.Module):
 
         return init_dist, trans_matrix, trans_dist, obs_matrix, obs_dist
 
-    def _unpack_gate_rate(self, gate_rate):
+    def _unpack_gate_rate(self, gate_rate, event_dim):
         n = self.num_stations
-        gate, rate = gate_rate.reshape(gate_rate.shape[:-1] + (2, n, n)).unbind(-3)
+        sample_shape = gate_rate.shape[:-3 - event_dim]
+        time_shape = gate_rate.shape[-event_dim:-1]
+        if not time_shape:
+            time_shape = (1,)
+        gate, rate = gate_rate.reshape(sample_shape + time_shape + (2, n, n)).unbind(-3)
         gate = gate.sigmoid()
         rate = bounded_exp(rate, bound=1e4)
         return gate, rate
@@ -91,7 +95,7 @@ class Model(nn.Module):
         # the observed portion of the time series.
         hmm = dist.GaussianHMM(*self._dynamics(features[:observed_hours]))
         gate_rate = pyro.sample("gate_rate", hmm)
-        gate, rate = self._unpack_gate_rate(gate_rate)
+        gate, rate = self._unpack_gate_rate(gate_rate, event_dim=2)
         with time_plate, origins_plate, destins_plate:
             pyro.sample("trip_count", dist.ZeroInflatedPoisson(gate, rate),
                         obs=trip_counts)
@@ -116,7 +120,7 @@ class Model(nn.Module):
             scale = obs_dist.base_dist.scale[..., t, :]
             gate_rate = pyro.sample("gate_rate_{}".format(t),
                                     dist.Normal(loc, scale).to_event(1))
-            gate, rate = self._unpack_gate_rate(gate_rate)
+            gate, rate = self._unpack_gate_rate(gate_rate, event_dim=1)
 
             with origins_plate, destins_plate:
                 forecast.append(pyro.sample("trip_count_{}".format(t),
@@ -170,7 +174,7 @@ def train(args, dataset):
         config = {
             "lr": args.learning_rate,
             "betas": (0.8, 0.99),
-            "weight_decay": 0.5 ** 1e-2,
+            "weight_decay": 0.01 ** (1 / args.num_steps),
         }
         if param_name == "init_scale":
             config["lr"] *= 0.1  # init_dist sees much less data per minibatch
@@ -229,16 +233,21 @@ class Forecaster:
 
     @torch.no_grad()
     def __call__(self, window_begin, window_end, forecast_hours, num_samples=None):
-        if num_samples is not None:
-            return torch.stack([self(window_begin, window_end, forecast_hours)
-                                for _ in range(num_samples)])
-
         assert 0 <= window_begin < window_end < window_end + forecast_hours <= len(self.counts)
         features = self.features[window_begin: window_end + forecast_hours]
         counts = self.counts[window_begin: window_end]
+
+        # To draw multiple samples efficiently, we parallelize using pyro.plate.
+        model = self.model
+        guide = self.guide
+        if num_samples is not None:
+            vectorize = pyro.plate("samples", num_samples, dim=-4)
+            model = vectorize(model)
+            guide = vectorize(guide)
+
         with poutine.trace() as tr:
-            self.guide(features, counts)
+            guide(features, counts)
         with poutine.replay(trace=tr.trace):
-            forecast = self.model(features, counts)
+            forecast = model(features, counts)
         assert len(forecast) == forecast_hours
-        return torch.stack(forecast)
+        return torch.cat(forecast, dim=-3)

@@ -12,7 +12,12 @@ def main(args):
     pyro.set_rng_seed(args.seed)
     dataset = load_hourly_od(args)
     forecaster = train(args, dataset)
+
+    num_samples = 10
     forecast = forecaster(0, 24 * 7, 24)
+    assert forecast.shape == (24,) + dataset["counts"].shape[-2:]
+    forecast = forecaster(0, 24 * 7, 24, num_samples=num_samples)
+    assert forecast.shape == (num_samples, 24) + dataset["counts"].shape[-2:]
     return forecast
 
 
