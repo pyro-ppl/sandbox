@@ -85,7 +85,7 @@ def _load_hourly_od(args_basename):
     return dataset
 
 
-def load_hourly_od(args):
+def load_hourly_od(args=None):
     filename = os.path.join(DATA, "full-counts.pkl")
     if os.path.exists(filename):
         return torch.load(filename)
