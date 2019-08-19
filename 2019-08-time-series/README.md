@@ -8,10 +8,10 @@ This is a series of three tutorials about time series forecasting in Pyro.
 ## Course material
 
 - [Overview slides](https://docs.google.com/presentation/d/1vZFRqvheo_qImvFedxQhNHSwm5vlrG82c2i2sU7dcyE/edit?usp=sharing)
-- [Part 1. Pyro models](https://github.com/pyro-ppl/sandbox/blob/master/2019-08-time-series/part_i_models.ipynb)
+- Part 1. Pyro models ([jupyter](https://github.com/pyro-ppl/sandbox/blob/master/2019-08-time-series/part_i_models.ipynb | [colab](https://colab.research.google.com/drive/1HJcys3UBDnW9JEA0upwK95WHO29ae1TE))
 - [Part 2. Pyro inference algorithms](https://github.com/pyro-ppl/sandbox/blob/master/2019-08-time-series/part_ii_inference.ipynb)
 - [Part 3. Custom inference](https://github.com/pyro-ppl/sandbox/blob/master/2019-08-time-series/part_iii_custom.ipynb)
-- [Extended example: BART ridership](https://github.com/pyro-ppl/sandbox/blob/master/2019-08-time-series/bart/forecast.ipynb)
+- Extended example: BART ridership ([jupyter](https://github.com/pyro-ppl/sandbox/blob/master/2019-08-time-series/bart/forecast.ipynb))
 
 ## Additional resources
 
