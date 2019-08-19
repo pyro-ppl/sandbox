@@ -29,6 +29,10 @@ def make_time_features(args, begin_time, end_time):
 
 
 class Model(nn.Module):
+    """
+    The main generative model.
+    This is used for both training and forecasting.
+    """
     def __init__(self, args, features, trip_counts):
         super().__init__()
         self.args = args
@@ -41,6 +45,21 @@ class Model(nn.Module):
             nn.Linear(args.model_nn_dim, 2 * gate_rate_dim))
         self.nn[0].bias.data.fill_(0)
         self.nn[2].bias.data.fill_(0)
+
+    def _unpack_gate_rate(self, gate_rate, event_dim):
+        """
+        Unpack the ``gate_rate`` pair output from the neural net.
+        This can be seen as a final layer of the neural net.
+        """
+        n = self.num_stations
+        sample_shape = gate_rate.shape[:-3 - event_dim]
+        time_shape = gate_rate.shape[-event_dim:-1]
+        if not time_shape:
+            time_shape = (1,)
+        gate, rate = gate_rate.reshape(sample_shape + time_shape + (2, n, n)).unbind(-3)
+        gate = gate.sigmoid()
+        rate = bounded_exp(rate, bound=1e4)
+        return gate, rate
 
     def _dynamics(self, features):
         """
@@ -68,17 +87,6 @@ class Model(nn.Module):
         obs_dist = dist.Normal(loc, scale).to_event(1)
 
         return init_dist, trans_matrix, trans_dist, obs_matrix, obs_dist
-
-    def _unpack_gate_rate(self, gate_rate, event_dim):
-        n = self.num_stations
-        sample_shape = gate_rate.shape[:-3 - event_dim]
-        time_shape = gate_rate.shape[-event_dim:-1]
-        if not time_shape:
-            time_shape = (1,)
-        gate, rate = gate_rate.reshape(sample_shape + time_shape + (2, n, n)).unbind(-3)
-        gate = gate.sigmoid()
-        rate = bounded_exp(rate, bound=1e4)
-        return gate, rate
 
     def forward(self, features, trip_counts):
         pyro.module("model", self)
@@ -129,10 +137,18 @@ class Model(nn.Module):
 
 
 class Guide(nn.Module):
+    """
+    The guide, aka encoder part of a variational autoencoder.
+    This operates independently over time.
+    """
     def __init__(self, args, features, trip_counts):
         super().__init__()
         feature_dim = features.size(-1)
         num_stations = trip_counts.size(-1)
+
+        # Gate and rate are each sampled from diagonal normal distributions
+        # whose parameters are estimated from the current counts using
+        # a diagonal + low-rank approximation.
         self.diag_part = nn.Parameter(torch.zeros(2 * 2, 1))
         self.lowrank = nn.Sequential(
             nn.Linear(feature_dim + num_stations ** 2, args.guide_rank),
@@ -155,6 +171,9 @@ class Guide(nn.Module):
 
 
 def train(args, dataset):
+    """
+    Train a model and guide to fit a dataset.
+    """
     counts = dataset["counts"]
     num_stations = len(dataset["stations"])
     logging.info("Training on {} stations over {} hours, {} batches/epoch"
@@ -200,6 +219,7 @@ def train(args, dataset):
         logging.debug("step {} loss = {:0.4g}".format(step, loss))
 
         if step % 20 == 0:
+            # Save state every few steps.
             pyro.get_param_store().save(args.param_store_filename)
             metadata = {"args": args, "losses": losses, "control": control_features}
             torch.save(metadata, args.training_filename)
@@ -222,6 +242,10 @@ def train(args, dataset):
 
 
 class Forecaster:
+    """
+    A single object containing all information needed to forecast.
+    This can be pickled and unpickled for later use.
+    """
     def __init__(self, args, dataset, features, model, guide):
         assert len(features) == len(dataset["counts"])
         self.args = args
@@ -233,6 +257,10 @@ class Forecaster:
 
     @torch.no_grad()
     def __call__(self, window_begin, window_end, forecast_hours, num_samples=None):
+        """
+        Given data in ``[window_begin, window_end)``, generate one or multiple
+        samples predictions in ``[window_end, window_end + forecast_hours)``.
+        """
         assert 0 <= window_begin < window_end < window_end + forecast_hours <= len(self.counts)
         features = self.features[window_begin: window_end + forecast_hours]
         counts = self.counts[window_begin: window_end]
