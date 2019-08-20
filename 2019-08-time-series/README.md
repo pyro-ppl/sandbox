@@ -1,4 +1,4 @@
-![welcome](https://img.shields.io/badge/contributions-welcome-green.svg)
+[![welcome](https://img.shields.io/badge/contributions-welcome-green.svg)](https://github.com/pyro-ppl/sandbox/issues/new)
 
 # Time Series Tutorials
 
