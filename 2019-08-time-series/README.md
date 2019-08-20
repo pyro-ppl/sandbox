@@ -14,6 +14,6 @@ This is a series of three tutorials about time series forecasting in Pyro.
 
 ## Additional resources
 
-Documentation: https://docs.pyro.ai
-Tutorials: https://pyro.ai/examples
-Forum: https://forum.pyro.ai
+- Documentation: https://docs.pyro.ai
+- Tutorials: https://pyro.ai/examples
+- Forum: https://forum.pyro.ai
