@@ -1,4 +1,3 @@
-![DRAFT](https://img.shields.io/badge/status-DRAFT-red.svg)
 ![welcome](https://img.shields.io/badge/contributions-welcome-green.svg)
 
 # Time Series Tutorials
