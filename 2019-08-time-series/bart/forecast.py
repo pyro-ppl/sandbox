@@ -65,21 +65,25 @@ class Model(nn.Module):
         """
         Compute dynamics parameters from time features.
         """
+        device = features.device
         state_dim = self.args.state_dim
         gate_rate_dim = 2 * self.num_stations ** 2
 
-        init_loc = torch.zeros(state_dim)
-        init_scale_tril = pyro.param("init_scale", torch.full((state_dim,), 10.),
+        init_loc = torch.zeros(state_dim, device=device)
+        init_scale_tril = pyro.param("init_scale",
+                                     torch.full((state_dim,), 10., device=device),
                                      constraint=constraints.positive).diag_embed()
         init_dist = dist.MultivariateNormal(init_loc, scale_tril=init_scale_tril)
 
-        trans_matrix = pyro.param("trans_matrix", 0.99 * torch.eye(state_dim))
-        trans_loc = torch.zeros(state_dim)
-        trans_scale_tril = pyro.param("trans_scale", 0.1 * torch.ones(state_dim),
+        trans_matrix = pyro.param("trans_matrix",
+                                  0.99 * torch.eye(state_dim, device=device))
+        trans_loc = torch.zeros(state_dim, device=device)
+        trans_scale_tril = pyro.param("trans_scale",
+                                      0.1 * torch.ones(state_dim, device=device),
                                       constraint=constraints.positive).diag_embed()
         trans_dist = dist.MultivariateNormal(trans_loc, scale_tril=trans_scale_tril)
 
-        obs_matrix = pyro.param("obs_matrix", torch.randn(state_dim, gate_rate_dim))
+        obs_matrix = pyro.param("obs_matrix", torch.randn(state_dim, gate_rate_dim, device=device))
         obs_matrix.data /= obs_matrix.data.norm(dim=-1, keepdim=True)
         loc_scale = self.nn(features)
         loc, scale = loc_scale.reshape(loc_scale.shape[:-1] + (2, gate_rate_dim)).unbind(-2)
@@ -201,8 +205,8 @@ def train(args, dataset):
 
     training_counts = counts[:args.truncate] if args.truncate else counts
     data_size = len(training_counts)
-    model = Model(args, features, training_counts)
-    guide = Guide(args, features, training_counts)
+    model = Model(args, features, training_counts).to(device=args.device)
+    guide = Guide(args, features, training_counts).to(device=args.device)
     elbo = Trace_ELBO()
     optim = ClippedAdam(optim_config)
     svi = SVI(model, guide, optim, elbo)
@@ -211,8 +215,8 @@ def train(args, dataset):
     for step in range(args.num_steps):
         begin_time = torch.randint(max(1, data_size - args.batch_size), ()).item()
         end_time = min(data_size, begin_time + args.batch_size)
-        feature_batch = features[begin_time: end_time]
-        counts_batch = counts[begin_time: end_time]
+        feature_batch = features[begin_time: end_time].to(device=args.device)
+        counts_batch = counts[begin_time: end_time].to(device=args.device)
         loss = svi.step(feature_batch, counts_batch) / counts_batch.numel()
         assert math.isfinite(loss), loss
         losses.append(loss)
@@ -262,8 +266,9 @@ class Forecaster:
         samples predictions in ``[window_end, window_end + forecast_hours)``.
         """
         assert 0 <= window_begin < window_end < window_end + forecast_hours <= len(self.counts)
-        features = self.features[window_begin: window_end + forecast_hours]
-        counts = self.counts[window_begin: window_end]
+        features = self.features[window_begin: window_end + forecast_hours] \
+                       .to(device=self.args.device)
+        counts = self.counts[window_begin: window_end].to(device=self.args.device)
 
         # To draw multiple samples efficiently, we parallelize using pyro.plate.
         model = self.model
@@ -278,4 +283,4 @@ class Forecaster:
         with poutine.replay(trace=tr.trace):
             forecast = model(features, counts)
         assert len(forecast) == forecast_hours
-        return torch.cat(forecast, dim=-3)
+        return torch.cat(forecast, dim=-3).cpu()
