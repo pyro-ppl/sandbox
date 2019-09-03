@@ -185,6 +185,7 @@ def elbo_loss(model, guide, features, trip_counts):
 
     elbo = exact_part + approx_part
     loss = -elbo
+    assert isinstance(loss, funsor.Tensor), loss
     return loss.data
 
 
