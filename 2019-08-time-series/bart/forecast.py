@@ -1,14 +1,19 @@
 import logging
 import math
 
-import pyro
-import pyro.distributions as dist
-import pyro.poutine as poutine
 import torch
 import torch.nn as nn
-from pyro.infer import SVI, Trace_ELBO
-from pyro.optim import ClippedAdam
+from pyro.generic import distributions as dist
+from pyro.generic import infer, optim, pyro, pyro_backend
 from torch.distributions import constraints
+
+import funsor
+import funsor.ops as ops
+from funsor.domains import reals
+from funsor.interpeter import interpretation
+from funsor.montecarlo import monte_carlo
+from funsor.pyro import dist_to_funsor, matrix_and_mvn_to_funsor, tensor_to_funsor
+from funsor.sum_product import sequential_sum_product
 
 
 def vm(vector, matrix):
@@ -57,8 +62,8 @@ class Model(nn.Module):
         if not time_shape:
             time_shape = (1,)
         gate, rate = gate_rate.reshape(sample_shape + time_shape + (2, n, n)).unbind(-3)
-        gate = gate.sigmoid()
         rate = bounded_exp(rate, bound=1e4)
+        gate = gate.sigmoid()
         return gate, rate
 
     def _dynamics(self, features):
@@ -139,6 +144,56 @@ class Model(nn.Module):
                                             dist.ZeroInflatedPoisson(gate, rate)))
         return forecast
 
+    def log_prob(self, features, trip_counts):
+        """
+        Compute a non-normalized funsor distribution over gate_rate.
+        """
+        pyro.module("model", self)
+        total_hours = len(features)
+        observed_hours, num_origins, num_destins = trip_counts.shape
+        assert observed_hours <= total_hours
+        assert num_origins == self.num_stations
+        assert num_destins == self.num_stations
+
+        @funsor.torch.function(reals(2 * num_origins * num_destins),
+                               (reals(num_origins, num_destins),
+                                reals(num_origins, num_destins)))
+        def unpack_gate_rate(gate_rate):
+            batch_shape = gate_rate.shape[:-1]
+            event_shape = (2, num_origins, num_destins)
+            gate, rate = gate_rate.reshape(batch_shape + event_shape).unbind(-3)
+            rate = bounded_exp(rate, bound=1e4)
+            gate = gate.sigmoid()
+            gate = torch.stack((torch.zeros_like(gate), gate), dim=-1)
+            return gate, rate
+
+        # Create a Gaussian latent dynamical system.
+        init_dist, trans_matrix, trans_dist, obs_matrix, obs_dist = \
+            self._dynamics(features[:observed_hours])
+        init = dist_to_funsor(init_dist)(value="state")
+        trans = matrix_and_mvn_to_funsor(trans_matrix, trans_dist,
+                                         ("time",), "state", "state(time=1)")
+        obs = matrix_and_mvn_to_funsor(obs_matrix, obs_dist,
+                                       ("time",), "state(time=1)", "value")
+
+        # Compute dynamic prior over gate_rate.
+        prior = trans + obs(value="gate_rate")
+        prior = sequential_sum_product(ops.logaddexp, ops.add,
+                                       prior, "time", {"state": "state(time=1)"})
+        prior += init
+        prior = prior.reduce(ops.logaddexp, frozenset(["state", "state(time=1)"]))
+
+        # Compute zero-inflated Poisson likelihood.
+        gate, rate = unpack_gate_rate("gate_rate")
+        likelihood = dist.Categorical(gate["origin", "destin"], value="gated")
+        likelihood += funsor.Stack("gated", (
+            dist.Poisson(rate["origin", "destin"], value=trip_counts),
+            dist.Delta(0, value=trip_counts)))
+        likelihood = likelihood.reduce(ops.logaddexp, "gated")
+        likelihood = likelihood.reduce(ops.add, frozenset(["time", "origin", "destin"]))
+
+        return prior, likelihood
+
 
 class Guide(nn.Module):
     """
@@ -173,6 +228,37 @@ class Guide(nn.Module):
         scale = bounded_exp(scale, bound=10.)
         pyro.sample("gate_rate", dist.Normal(loc, scale).to_event(2))
 
+    def log_prob(self, features, trip_counts):
+        assert features.dim() == 2
+        assert trip_counts.dim() == 3
+        observed_hours = len(trip_counts)
+        log_counts = trip_counts.reshape(observed_hours, -1).log1p()
+        loc_scale = ((self.diag_part * log_counts.unsqueeze(-2)).reshape(observed_hours, -1) +
+                     self.lowrank(torch.cat([features[:observed_hours], log_counts], dim=-1)))
+        loc, scale = loc_scale.reshape(observed_hours, 2, -1).unbind(1)
+        scale = bounded_exp(scale, bound=10.)
+        loc = tensor_to_funsor(loc, ("time",), 1)
+        scale = tensor_to_funsor(scale, ("time",), 1)
+        log_prob = funsor.Independent(dist.Normal(loc["i"], scale["i"], value="gate_rate"),
+                                      "gate_rate", "i")
+        return log_prob
+
+
+def loss_function(model, guide, features, trip_counts):
+    p_prior, p_likelihood = model(features, trip_counts)
+    q = guide(features, trip_counts)
+
+    # We can compute the KL part analytically.
+    exact_part = funsor.Integrate(q, p_prior - q, frozenset(["gate_rate"]))
+
+    # But we need to Monte Carlo approximate to compute likelihood.
+    with interpretation(monte_carlo):
+        approx_part = funsor.Integrate(q, p_likelihood, frozenset(["gate_rate"]))
+
+    elbo = exact_part + approx_part
+    loss = -elbo
+    return loss
+
 
 def train(args, dataset):
     """
@@ -203,84 +289,39 @@ def train(args, dataset):
             config["lr"] *= 0.1  # init_dist sees much less data per minibatch
         return config
 
-    training_counts = counts[:args.truncate] if args.truncate else counts
-    data_size = len(training_counts)
-    model = Model(args, features, training_counts).to(device=args.device)
-    guide = Guide(args, features, training_counts).to(device=args.device)
-    elbo = Trace_ELBO()
-    optim = ClippedAdam(optim_config)
-    svi = SVI(model, guide, optim, elbo)
-    losses = []
-    forecaster = None
-    for step in range(args.num_steps):
-        begin_time = torch.randint(max(1, data_size - args.batch_size), ()).item()
-        end_time = min(data_size, begin_time + args.batch_size)
-        feature_batch = features[begin_time: end_time].to(device=args.device)
-        counts_batch = counts[begin_time: end_time].to(device=args.device)
-        loss = svi.step(feature_batch, counts_batch) / counts_batch.numel()
-        assert math.isfinite(loss), loss
-        losses.append(loss)
-        logging.debug("step {} loss = {:0.4g}".format(step, loss))
+    with pyro_backend("funsor"):
+        training_counts = counts[:args.truncate] if args.truncate else counts
+        data_size = len(training_counts)
+        model = Model(args, features, training_counts).to(device=args.device)
+        guide = Guide(args, features, training_counts).to(device=args.device)
+        elbo = infer.Trace_ELBO()
+        optimizer = optim.ClippedAdam(optim_config)
+        svi = infer.SVI(model, guide, optimizer, elbo)
+        losses = []
+        for step in range(args.num_steps):
+            begin_time = torch.randint(max(1, data_size - args.batch_size), ()).item()
+            end_time = min(data_size, begin_time + args.batch_size)
+            feature_batch = features[begin_time: end_time].to(device=args.device)
+            counts_batch = counts[begin_time: end_time].to(device=args.device)
+            loss = svi.step(feature_batch, counts_batch) / counts_batch.numel()
+            assert math.isfinite(loss), loss
+            losses.append(loss)
+            logging.debug("step {} loss = {:0.4g}".format(step, loss))
 
-        if step % 20 == 0:
-            # Save state every few steps.
-            pyro.get_param_store().save(args.param_store_filename)
-            metadata = {"args": args, "losses": losses, "control": control_features}
-            torch.save(metadata, args.training_filename)
-            forecaster = Forecaster(args, dataset, features, model, guide)
-            torch.save(forecaster, args.forecaster_filename)
+            if step % 20 == 0:
+                # Save state every few steps.
+                pyro.get_param_store().save(args.param_store_filename)
+                metadata = {"args": args, "losses": losses, "control": control_features}
+                torch.save(metadata, args.training_filename)
 
-            if logging.Logger(None).isEnabledFor(logging.DEBUG):
-                init_scale = pyro.param("init_scale").data
-                trans_scale = pyro.param("trans_scale").data
-                trans_matrix = pyro.param("trans_matrix").data
-                eigs = trans_matrix.eig()[0].norm(dim=-1).sort(descending=True).values
-                logging.debug("guide.diag_part = {}".format(guide.diag_part.data.squeeze()))
-                logging.debug("init scale min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
-                              .format(init_scale.min(), init_scale.mean(), init_scale.max()))
-                logging.debug("trans scale min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
-                              .format(trans_scale.min(), trans_scale.mean(), trans_scale.max()))
-                logging.debug("trans mat eig:\n{}".format(eigs))
-
-    return forecaster
-
-
-class Forecaster:
-    """
-    A single object containing all information needed to forecast.
-    This can be pickled and unpickled for later use.
-    """
-    def __init__(self, args, dataset, features, model, guide):
-        assert len(features) == len(dataset["counts"])
-        self.args = args
-        self.dataset = dataset
-        self.counts = dataset["counts"]
-        self.features = features
-        self.model = model
-        self.guide = guide
-
-    @torch.no_grad()
-    def __call__(self, window_begin, window_end, forecast_hours, num_samples=None):
-        """
-        Given data in ``[window_begin, window_end)``, generate one or multiple
-        samples predictions in ``[window_end, window_end + forecast_hours)``.
-        """
-        assert 0 <= window_begin < window_end < window_end + forecast_hours <= len(self.counts)
-        features = self.features[window_begin: window_end + forecast_hours] \
-                       .to(device=self.args.device)
-        counts = self.counts[window_begin: window_end].to(device=self.args.device)
-
-        # To draw multiple samples efficiently, we parallelize using pyro.plate.
-        model = self.model
-        guide = self.guide
-        if num_samples is not None:
-            vectorize = pyro.plate("samples", num_samples, dim=-4)
-            model = vectorize(model)
-            guide = vectorize(guide)
-
-        with poutine.trace() as tr:
-            guide(features, counts)
-        with poutine.replay(trace=tr.trace):
-            forecast = model(features, counts)
-        assert len(forecast) == forecast_hours
-        return torch.cat(forecast, dim=-3).cpu()
+                if logging.Logger(None).isEnabledFor(logging.DEBUG):
+                    init_scale = pyro.param("init_scale").data
+                    trans_scale = pyro.param("trans_scale").data
+                    trans_matrix = pyro.param("trans_matrix").data
+                    eigs = trans_matrix.eig()[0].norm(dim=-1).sort(descending=True).values
+                    logging.debug("guide.diag_part = {}".format(guide.diag_part.data.squeeze()))
+                    logging.debug("init scale min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
+                                  .format(init_scale.min(), init_scale.mean(), init_scale.max()))
+                    logging.debug("trans scale min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
+                                  .format(trans_scale.min(), trans_scale.mean(), trans_scale.max()))
+                    logging.debug("trans mat eig:\n{}".format(eigs))
