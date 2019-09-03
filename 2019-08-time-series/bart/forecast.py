@@ -1,19 +1,21 @@
+import argparse
 import logging
 import math
 
 import torch
 import torch.nn as nn
 from pyro.generic import distributions as dist
-from pyro.generic import infer, optim, pyro, pyro_backend
+from pyro.generic import infer, optim, pyro
 from torch.distributions import constraints
 
 import funsor
 import funsor.ops as ops
 from funsor.domains import reals
-from funsor.interpeter import interpretation
+from funsor.interpreter import interpretation
 from funsor.montecarlo import monte_carlo
-from funsor.pyro import dist_to_funsor, matrix_and_mvn_to_funsor, tensor_to_funsor
+from funsor.pyro.convert import dist_to_funsor, matrix_and_mvn_to_funsor, tensor_to_funsor
 from funsor.sum_product import sequential_sum_product
+from preprocess import load_hourly_od
 
 
 def vm(vector, matrix):
@@ -51,21 +53,6 @@ class Model(nn.Module):
         self.nn[0].bias.data.fill_(0)
         self.nn[2].bias.data.fill_(0)
 
-    def _unpack_gate_rate(self, gate_rate, event_dim):
-        """
-        Unpack the ``gate_rate`` pair output from the neural net.
-        This can be seen as a final layer of the neural net.
-        """
-        n = self.num_stations
-        sample_shape = gate_rate.shape[:-3 - event_dim]
-        time_shape = gate_rate.shape[-event_dim:-1]
-        if not time_shape:
-            time_shape = (1,)
-        gate, rate = gate_rate.reshape(sample_shape + time_shape + (2, n, n)).unbind(-3)
-        rate = bounded_exp(rate, bound=1e4)
-        gate = gate.sigmoid()
-        return gate, rate
-
     def _dynamics(self, features):
         """
         Compute dynamics parameters from time features.
@@ -98,53 +85,6 @@ class Model(nn.Module):
         return init_dist, trans_matrix, trans_dist, obs_matrix, obs_dist
 
     def forward(self, features, trip_counts):
-        pyro.module("model", self)
-        total_hours = len(features)
-        observed_hours, num_origins, num_destins = trip_counts.shape
-        assert observed_hours <= total_hours
-        assert num_origins == self.num_stations
-        assert num_destins == self.num_stations
-        time_plate = pyro.plate("time", observed_hours, dim=-3)
-        origins_plate = pyro.plate("origins", num_origins, dim=-2)
-        destins_plate = pyro.plate("destins", num_destins, dim=-1)
-
-        # The first half of the model performs exact inference over
-        # the observed portion of the time series.
-        hmm = dist.GaussianHMM(*self._dynamics(features[:observed_hours]))
-        gate_rate = pyro.sample("gate_rate", hmm)
-        gate, rate = self._unpack_gate_rate(gate_rate, event_dim=2)
-        with time_plate, origins_plate, destins_plate:
-            pyro.sample("trip_count", dist.ZeroInflatedPoisson(gate, rate),
-                        obs=trip_counts)
-
-        # The second half of the model forecasts forward.
-        forecast = []
-        forecast_hours = total_hours - observed_hours
-        if forecast_hours > 0:
-            _, trans_matrix, trans_dist, obs_matrix, obs_dist = \
-                self._dynamics(features[observed_hours:])
-        state = None
-        for t in range(forecast_hours):
-            if state is None:  # on first step
-                state_dist = hmm.filter(gate_rate)
-            else:
-                loc = vm(state, trans_matrix) + trans_dist.loc
-                scale_tril = trans_dist.scale_tril
-                state_dist = dist.MultivariateNormal(loc, scale_tril=scale_tril)
-            state = pyro.sample("state_{}".format(t), state_dist)
-
-            loc = vm(state, obs_matrix) + obs_dist.base_dist.loc[..., t, :]
-            scale = obs_dist.base_dist.scale[..., t, :]
-            gate_rate = pyro.sample("gate_rate_{}".format(t),
-                                    dist.Normal(loc, scale).to_event(1))
-            gate, rate = self._unpack_gate_rate(gate_rate, event_dim=1)
-
-            with origins_plate, destins_plate:
-                forecast.append(pyro.sample("trip_count_{}".format(t),
-                                            dist.ZeroInflatedPoisson(gate, rate)))
-        return forecast
-
-    def log_prob(self, features, trip_counts):
         """
         Compute a non-normalized funsor distribution over gate_rate.
         """
@@ -217,18 +157,6 @@ class Guide(nn.Module):
         self.lowrank[2].bias.data.fill_(0)
 
     def forward(self, features, trip_counts):
-        pyro.module("guide", self)
-        assert features.dim() == 2
-        assert trip_counts.dim() == 3
-        observed_hours = len(trip_counts)
-        log_counts = trip_counts.reshape(observed_hours, -1).log1p()
-        loc_scale = ((self.diag_part * log_counts.unsqueeze(-2)).reshape(observed_hours, -1) +
-                     self.lowrank(torch.cat([features[:observed_hours], log_counts], dim=-1)))
-        loc, scale = loc_scale.reshape(observed_hours, 2, -1).unbind(1)
-        scale = bounded_exp(scale, bound=10.)
-        pyro.sample("gate_rate", dist.Normal(loc, scale).to_event(2))
-
-    def log_prob(self, features, trip_counts):
         assert features.dim() == 2
         assert trip_counts.dim() == 3
         observed_hours = len(trip_counts)
@@ -244,7 +172,7 @@ class Guide(nn.Module):
         return log_prob
 
 
-def loss_function(model, guide, features, trip_counts):
+def elbo_loss(model, guide, features, trip_counts):
     p_prior, p_likelihood = model(features, trip_counts)
     q = guide(features, trip_counts)
 
@@ -257,7 +185,7 @@ def loss_function(model, guide, features, trip_counts):
 
     elbo = exact_part + approx_part
     loss = -elbo
-    return loss
+    return loss.data
 
 
 def train(args, dataset):
@@ -289,39 +217,86 @@ def train(args, dataset):
             config["lr"] *= 0.1  # init_dist sees much less data per minibatch
         return config
 
-    with pyro_backend("funsor"):
-        training_counts = counts[:args.truncate] if args.truncate else counts
-        data_size = len(training_counts)
-        model = Model(args, features, training_counts).to(device=args.device)
-        guide = Guide(args, features, training_counts).to(device=args.device)
-        elbo = infer.Trace_ELBO()
-        optimizer = optim.ClippedAdam(optim_config)
-        svi = infer.SVI(model, guide, optimizer, elbo)
-        losses = []
-        for step in range(args.num_steps):
-            begin_time = torch.randint(max(1, data_size - args.batch_size), ()).item()
-            end_time = min(data_size, begin_time + args.batch_size)
-            feature_batch = features[begin_time: end_time].to(device=args.device)
-            counts_batch = counts[begin_time: end_time].to(device=args.device)
-            loss = svi.step(feature_batch, counts_batch) / counts_batch.numel()
-            assert math.isfinite(loss), loss
-            losses.append(loss)
-            logging.debug("step {} loss = {:0.4g}".format(step, loss))
+    training_counts = counts[:args.truncate] if args.truncate else counts
+    data_size = len(training_counts)
+    model = Model(args, features, training_counts).to(device=args.device)
+    guide = Guide(args, features, training_counts).to(device=args.device)
+    optimizer = optim.ClippedAdam(optim_config)
+    svi = infer.SVI(model, guide, optimizer, elbo_loss)
+    losses = []
+    for step in range(args.num_steps):
+        begin_time = torch.randint(max(1, data_size - args.batch_size), ()).item()
+        end_time = min(data_size, begin_time + args.batch_size)
+        feature_batch = features[begin_time: end_time].to(device=args.device)
+        counts_batch = counts[begin_time: end_time].to(device=args.device)
+        loss = svi.step(feature_batch, counts_batch) / counts_batch.numel()
+        assert math.isfinite(loss), loss
+        losses.append(loss)
+        logging.debug("step {} loss = {:0.4g}".format(step, loss))
 
-            if step % 20 == 0:
-                # Save state every few steps.
-                pyro.get_param_store().save(args.param_store_filename)
-                metadata = {"args": args, "losses": losses, "control": control_features}
-                torch.save(metadata, args.training_filename)
+        if step % 20 == 0:
+            # Save state every few steps.
+            pyro.get_param_store().save(args.param_store_filename)
+            metadata = {"args": args, "losses": losses, "control": control_features}
+            torch.save(metadata, args.training_filename)
 
-                if logging.Logger(None).isEnabledFor(logging.DEBUG):
-                    init_scale = pyro.param("init_scale").data
-                    trans_scale = pyro.param("trans_scale").data
-                    trans_matrix = pyro.param("trans_matrix").data
-                    eigs = trans_matrix.eig()[0].norm(dim=-1).sort(descending=True).values
-                    logging.debug("guide.diag_part = {}".format(guide.diag_part.data.squeeze()))
-                    logging.debug("init scale min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
-                                  .format(init_scale.min(), init_scale.mean(), init_scale.max()))
-                    logging.debug("trans scale min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
-                                  .format(trans_scale.min(), trans_scale.mean(), trans_scale.max()))
-                    logging.debug("trans mat eig:\n{}".format(eigs))
+            if logging.Logger(None).isEnabledFor(logging.DEBUG):
+                init_scale = pyro.param("init_scale").data
+                trans_scale = pyro.param("trans_scale").data
+                trans_matrix = pyro.param("trans_matrix").data
+                eigs = trans_matrix.eig()[0].norm(dim=-1).sort(descending=True).values
+                logging.debug("guide.diag_part = {}".format(guide.diag_part.data.squeeze()))
+                logging.debug("init scale min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
+                              .format(init_scale.min(), init_scale.mean(), init_scale.max()))
+                logging.debug("trans scale min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
+                              .format(trans_scale.min(), trans_scale.mean(), trans_scale.max()))
+                logging.debug("trans mat eig:\n{}".format(eigs))
+
+
+def main(args):
+    assert pyro.__version__ >= "0.4.1"
+    pyro.enable_validation(__debug__)
+    pyro.set_rng_seed(args.seed)
+    dataset = load_hourly_od(args)
+    forecaster = train(args, dataset)
+
+    num_samples = 10
+    forecast = forecaster(0, 24 * 7, 24)
+    assert forecast.shape == (24,) + dataset["counts"].shape[-2:]
+    forecast = forecaster(0, 24 * 7, 24, num_samples=num_samples)
+    assert forecast.shape == (num_samples, 24) + dataset["counts"].shape[-2:]
+    return forecast
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="BART origin-destination forecast")
+    parser.add_argument("--param-store-filename", default="pyro_param_store.pkl")
+    parser.add_argument("--forecaster-filename", default="forecaster.pkl")
+    parser.add_argument("--training-filename", default="training.pkl")
+    parser.add_argument("--truncate", default="0", type=int,
+                        help="optionally truncate to a subset of hours")
+    parser.add_argument("--state-dim", default="8", type=int,
+                        help="size of HMM state space in model")
+    parser.add_argument("--model-nn-dim", default="64", type=int,
+                        help="size of hidden layer in model net")
+    parser.add_argument("--guide-rank", default="8", type=int,
+                        help="size of hidden layer in guide net")
+    parser.add_argument("-n", "--num-steps", default=1001, type=int)
+    parser.add_argument("-b", "--batch-size", default=24 * 7 * 2, type=int)
+    parser.add_argument("-lr", "--learning-rate", default=0.05, type=float)
+    parser.add_argument("--seed", default=123456789, type=int)
+    parser.add_argument("--device", default="")
+    parser.add_argument("--cuda", dest="device", action="store_const", const="cuda")
+    parser.add_argument("-v", "--verbose", action="store_true")
+    args = parser.parse_args()
+    if not args.device:
+        args.device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    logging.basicConfig(format='%(relativeCreated) 9d %(message)s',
+                        level=logging.DEBUG if args.verbose else logging.INFO)
+    try:
+        main(args)
+    except Exception as e:
+        print(e)
+        import pdb
+        pdb.post_mortem(e.__traceback__)
