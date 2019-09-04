@@ -172,18 +172,26 @@ class Guide(nn.Module):
         return log_prob
 
 
-def elbo_loss(model, guide, features, trip_counts):
+def elbo_loss(model, guide, args, features, trip_counts):
     p_prior, p_likelihood = model(features, trip_counts)
     q = guide(features, trip_counts)
 
-    # We can compute the KL part analytically.
-    exact_part = funsor.Integrate(q, p_prior - q, frozenset(["gate_rate"]))
+    if args.analytic_kl:
+        # We can compute the KL part analytically.
+        exact_part = funsor.Integrate(q, p_prior - q, frozenset(["gate_rate"]))
 
-    # But we need to Monte Carlo approximate to compute likelihood.
-    with interpretation(monte_carlo):
-        approx_part = funsor.Integrate(q, p_likelihood, frozenset(["gate_rate"]))
+        # But we need to Monte Carlo approximate to compute likelihood.
+        with interpretation(monte_carlo):
+            approx_part = funsor.Integrate(q, p_likelihood, frozenset(["gate_rate"]))
 
-    elbo = exact_part + approx_part
+        elbo = exact_part + approx_part
+    else:
+        p = p_prior + p_likelihood
+
+        # Monte Carlo approximate everything.
+        with interpretation(monte_carlo):
+            elbo = funsor.Integrate(q, p - q, frozenset(["gate_rate"]))
+
     loss = -elbo
     assert isinstance(loss, funsor.Tensor), loss
     return loss.data
@@ -230,7 +238,7 @@ def train(args, dataset):
         end_time = min(data_size, begin_time + args.batch_size)
         feature_batch = features[begin_time: end_time].to(device=args.device)
         counts_batch = counts[begin_time: end_time].to(device=args.device)
-        loss = svi.step(feature_batch, counts_batch) / counts_batch.numel()
+        loss = svi.step(args, feature_batch, counts_batch) / counts_batch.numel()
         assert math.isfinite(loss), loss
         losses.append(loss)
         logging.debug("step {} loss = {:0.4g}".format(step, loss))
@@ -282,6 +290,7 @@ if __name__ == "__main__":
                         help="size of hidden layer in model net")
     parser.add_argument("--guide-rank", default="8", type=int,
                         help="size of hidden layer in guide net")
+    parser.add_argument("--analytic-kl", action="store_true")
     parser.add_argument("-n", "--num-steps", default=1001, type=int)
     parser.add_argument("-b", "--batch-size", default=24 * 7 * 2, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.05, type=float)
