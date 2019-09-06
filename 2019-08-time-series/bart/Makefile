@@ -14,7 +14,7 @@ test: lint FORCE
 tinytest: lint FORCE
 	python forecast.py -n 1 -v \
       --tiny=2 \
-	  --truncate=2 \
+	  --truncate=3 \
 	  --param-store-filename=/dev/null \
 	  --forecaster=/dev/null \
 	  --training-filename=/dev/null

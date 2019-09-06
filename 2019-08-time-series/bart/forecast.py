@@ -96,6 +96,8 @@ class Model(nn.Module):
         assert observed_hours <= total_hours
         assert num_origins == self.num_stations
         assert num_destins == self.num_stations
+        gate_rate = funsor.Variable(
+            "gate_rate_t", reals(observed_hours, 2 * num_origins * num_destins))["time"]
 
         @funsor.torch.function(reals(2 * num_origins * num_destins),
                                (reals(num_origins, num_destins, 2),
@@ -118,14 +120,14 @@ class Model(nn.Module):
                                        ("time",), "state(time=1)", "gate_rate")
 
         # Compute dynamic prior over gate_rate.
-        prior = trans + obs
+        prior = trans + obs(gate_rate=gate_rate)
         prior = sequential_sum_product(ops.logaddexp, ops.add,
                                        prior, "time", {"state": "state(time=1)"})
         prior += init
         prior = prior.reduce(ops.logaddexp, {"state", "state(time=1)"})
 
         # Compute zero-inflated Poisson likelihood.
-        gate, rate = unpack_gate_rate("gate_rate")
+        gate, rate = unpack_gate_rate(gate_rate)
         likelihood = fdist.Categorical(gate["origin", "destin"], value="gated")
         trip_counts = tensor_to_funsor(trip_counts, ("time", "origin", "destin"))
         likelihood += funsor.Stack("gated", (
@@ -134,6 +136,8 @@ class Model(nn.Module):
         likelihood = likelihood.reduce(ops.logaddexp, "gated")
         likelihood = likelihood.reduce(ops.add, {"time", "origin", "destin"})
 
+        assert set(prior.inputs) == {"gate_rate_t"}, prior.inputs
+        assert set(likelihood.inputs) == {"gate_rate_t"}, likelihood.inputs
         return prior, likelihood
 
 
@@ -169,21 +173,27 @@ class Guide(nn.Module):
         scale = bounded_exp(scale, bound=10.)
         diag_normal = dist.Normal(loc, scale).to_event(1)
         log_prob = dist_to_funsor(diag_normal, ("time",))(value="gate_rate")
+        log_prob = funsor.Independent(log_prob, "gate_rate_t", "time", "gate_rate")
+
+        assert set(log_prob.inputs) == {"gate_rate_t"}, log_prob.inputs
         return log_prob
 
 
 def elbo_loss(model, guide, args, features, trip_counts):
     q = guide(features, trip_counts)
-    with interpretation(lazy if True else reflect):
+    with interpretation(lazy):
+        pass
+    with interpretation(reflect):
         p_prior, p_likelihood = model(features, trip_counts)
+        pass
 
     if args.analytic_kl:
         # We can compute the KL part analytically.
-        exact_part = funsor.Integrate(q, p_prior - q, frozenset(["gate_rate"]))
+        exact_part = funsor.Integrate(q, p_prior - q, frozenset(["gate_rate_t"]))
 
         # But we need to Monte Carlo approximate to compute likelihood.
         with interpretation(monte_carlo):
-            approx_part = funsor.Integrate(q, p_likelihood, frozenset(["gate_rate"]))
+            approx_part = funsor.Integrate(q, p_likelihood, frozenset(["gate_rate_t"]))
 
         elbo = exact_part + approx_part
     else:
@@ -191,10 +201,11 @@ def elbo_loss(model, guide, args, features, trip_counts):
 
         # Monte Carlo approximate everything.
         with interpretation(monte_carlo):
-            elbo = funsor.Integrate(q, p - q, frozenset(["gate_rate"]))
+            elbo = funsor.Integrate(q, p - q, frozenset(["gate_rate_t"]))
 
     loss = -elbo
-    assert isinstance(loss, funsor.Tensor), loss
+    assert not loss.inputs, loss.inputs
+    assert isinstance(loss, funsor.Tensor), loss.pretty()
     return loss.data
 
 
