@@ -9,12 +9,14 @@ from pyro.generic import infer, optim, pyro
 from torch.distributions import constraints
 
 import funsor
+import funsor.distributions as fdist
 import funsor.ops as ops
 from funsor.domains import reals
 from funsor.interpreter import interpretation
 from funsor.montecarlo import monte_carlo
 from funsor.pyro.convert import dist_to_funsor, matrix_and_mvn_to_funsor, tensor_to_funsor
 from funsor.sum_product import sequential_sum_product
+from funsor.terms import lazy, reflect
 from preprocess import load_hourly_od
 
 
@@ -96,14 +98,13 @@ class Model(nn.Module):
         assert num_destins == self.num_stations
 
         @funsor.torch.function(reals(2 * num_origins * num_destins),
-                               (reals(num_origins, num_destins),
+                               (reals(num_origins, num_destins, 2),
                                 reals(num_origins, num_destins)))
         def unpack_gate_rate(gate_rate):
             batch_shape = gate_rate.shape[:-1]
             event_shape = (2, num_origins, num_destins)
             gate, rate = gate_rate.reshape(batch_shape + event_shape).unbind(-3)
             rate = bounded_exp(rate, bound=1e4)
-            gate = gate.sigmoid()
             gate = torch.stack((torch.zeros_like(gate), gate), dim=-1)
             return gate, rate
 
@@ -114,23 +115,24 @@ class Model(nn.Module):
         trans = matrix_and_mvn_to_funsor(trans_matrix, trans_dist,
                                          ("time",), "state", "state(time=1)")
         obs = matrix_and_mvn_to_funsor(obs_matrix, obs_dist,
-                                       ("time",), "state(time=1)", "value")
+                                       ("time",), "state(time=1)", "gate_rate")
 
         # Compute dynamic prior over gate_rate.
-        prior = trans + obs(value="gate_rate")
+        prior = trans + obs
         prior = sequential_sum_product(ops.logaddexp, ops.add,
                                        prior, "time", {"state": "state(time=1)"})
         prior += init
-        prior = prior.reduce(ops.logaddexp, frozenset(["state", "state(time=1)"]))
+        prior = prior.reduce(ops.logaddexp, {"state", "state(time=1)"})
 
         # Compute zero-inflated Poisson likelihood.
         gate, rate = unpack_gate_rate("gate_rate")
-        likelihood = dist.Categorical(gate["origin", "destin"], value="gated")
+        likelihood = fdist.Categorical(gate["origin", "destin"], value="gated")
+        trip_counts = tensor_to_funsor(trip_counts, ("time", "origin", "destin"))
         likelihood += funsor.Stack("gated", (
-            dist.Poisson(rate["origin", "destin"], value=trip_counts),
-            dist.Delta(0, value=trip_counts)))
+            fdist.Poisson(rate["origin", "destin"], value=trip_counts),
+            fdist.Delta(0, value=trip_counts)))
         likelihood = likelihood.reduce(ops.logaddexp, "gated")
-        likelihood = likelihood.reduce(ops.add, frozenset(["time", "origin", "destin"]))
+        likelihood = likelihood.reduce(ops.add, {"time", "origin", "destin"})
 
         return prior, likelihood
 
@@ -165,16 +167,15 @@ class Guide(nn.Module):
                      self.lowrank(torch.cat([features[:observed_hours], log_counts], dim=-1)))
         loc, scale = loc_scale.reshape(observed_hours, 2, -1).unbind(1)
         scale = bounded_exp(scale, bound=10.)
-        loc = tensor_to_funsor(loc, ("time",), 1)
-        scale = tensor_to_funsor(scale, ("time",), 1)
-        log_prob = funsor.Independent(dist.Normal(loc["i"], scale["i"], value="gate_rate"),
-                                      "gate_rate", "i")
+        diag_normal = dist.Normal(loc, scale).to_event(1)
+        log_prob = dist_to_funsor(diag_normal, ("time",))(value="gate_rate")
         return log_prob
 
 
 def elbo_loss(model, guide, args, features, trip_counts):
-    p_prior, p_likelihood = model(features, trip_counts)
     q = guide(features, trip_counts)
+    with interpretation(lazy if True else reflect):
+        p_prior, p_likelihood = model(features, trip_counts)
 
     if args.analytic_kl:
         # We can compute the KL part analytically.
@@ -267,14 +268,10 @@ def main(args):
     pyro.enable_validation(__debug__)
     pyro.set_rng_seed(args.seed)
     dataset = load_hourly_od(args)
-    forecaster = train(args, dataset)
-
-    num_samples = 10
-    forecast = forecaster(0, 24 * 7, 24)
-    assert forecast.shape == (24,) + dataset["counts"].shape[-2:]
-    forecast = forecaster(0, 24 * 7, 24, num_samples=num_samples)
-    assert forecast.shape == (num_samples, 24) + dataset["counts"].shape[-2:]
-    return forecast
+    if args.tiny:
+        dataset["stations"] = dataset["stations"][:args.tiny]
+        dataset["counts"] = dataset["counts"][:, :args.tiny, :args.tiny]
+    train(args, dataset)
 
 
 if __name__ == "__main__":
@@ -282,13 +279,15 @@ if __name__ == "__main__":
     parser.add_argument("--param-store-filename", default="pyro_param_store.pkl")
     parser.add_argument("--forecaster-filename", default="forecaster.pkl")
     parser.add_argument("--training-filename", default="training.pkl")
-    parser.add_argument("--truncate", default="0", type=int,
+    parser.add_argument("--truncate", default=0, type=int,
                         help="optionally truncate to a subset of hours")
-    parser.add_argument("--state-dim", default="8", type=int,
+    parser.add_argument("--tiny", default=0, type=int,
+                        help="optionally truncate to a subset of stations")
+    parser.add_argument("--state-dim", default=8, type=int,
                         help="size of HMM state space in model")
-    parser.add_argument("--model-nn-dim", default="64", type=int,
+    parser.add_argument("--model-nn-dim", default=64, type=int,
                         help="size of hidden layer in model net")
-    parser.add_argument("--guide-rank", default="8", type=int,
+    parser.add_argument("--guide-rank", default=8, type=int,
                         help="size of hidden layer in guide net")
     parser.add_argument("--analytic-kl", action="store_true")
     parser.add_argument("-n", "--num-steps", default=1001, type=int)
