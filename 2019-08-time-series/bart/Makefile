@@ -18,6 +18,13 @@ tinytest: lint FORCE
 	  --param-store-filename=/dev/null \
 	  --forecaster=/dev/null \
 	  --training-filename=/dev/null
+	python forecast.py -n 1 -v \
+      --tiny=2 \
+	  --truncate=3 \
+	  --analytic-kl \
+	  --param-store-filename=/dev/null \
+	  --forecaster=/dev/null \
+	  --training-filename=/dev/null
 	@echo PASS
 
 FORCE:

@@ -16,7 +16,7 @@ from funsor.interpreter import interpretation
 from funsor.montecarlo import monte_carlo
 from funsor.pyro.convert import dist_to_funsor, matrix_and_mvn_to_funsor, tensor_to_funsor
 from funsor.sum_product import sequential_sum_product
-from funsor.terms import lazy, reflect
+from funsor.terms import reflect
 from preprocess import load_hourly_od
 
 
@@ -181,11 +181,8 @@ class Guide(nn.Module):
 
 def elbo_loss(model, guide, args, features, trip_counts):
     q = guide(features, trip_counts)
-    with interpretation(lazy):
-        pass
     with interpretation(reflect):
         p_prior, p_likelihood = model(features, trip_counts)
-        pass
 
     if args.analytic_kl:
         # We can compute the KL part analytically.
