@@ -181,11 +181,16 @@ class Guide(nn.Module):
 
 def elbo_loss(model, guide, args, features, trip_counts):
     q = guide(features, trip_counts)
+    print(f"DEBUG q =\n{q.pretty()}")
     with interpretation(reflect):
         p_prior, p_likelihood = model(features, trip_counts)
+        print(f"DEBUG p_prior =\n{p_prior.pretty()}")
+        print(f"DEBUG p_likelihood =\n{p_likelihood.pretty()}")
+        p = p_prior + p_likelihood
+        print(f"DEBUG p =\n{p.pretty()}")
 
     if args.analytic_kl:
-        # We can compute the KL part analytically.
+        # We can compute the KL part exactly.
         exact_part = funsor.Integrate(q, p_prior - q, frozenset(["gate_rate_t"]))
 
         # But we need to Monte Carlo approximate to compute likelihood.
@@ -194,11 +199,11 @@ def elbo_loss(model, guide, args, features, trip_counts):
 
         elbo = exact_part + approx_part
     else:
-        p = p_prior + p_likelihood
-
+        with interpretation(reflect):
+            pq = p - q
         # Monte Carlo approximate everything.
         with interpretation(monte_carlo):
-            elbo = funsor.Integrate(q, p - q, frozenset(["gate_rate_t"]))
+            elbo = funsor.Integrate(q, pq, frozenset(["gate_rate_t"]))
 
     loss = -elbo
     assert not loss.inputs, loss.inputs
@@ -285,7 +290,6 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="BART origin-destination forecast")
     parser.add_argument("--param-store-filename", default="pyro_param_store.pkl")
-    parser.add_argument("--forecaster-filename", default="forecaster.pkl")
     parser.add_argument("--training-filename", default="training.pkl")
     parser.add_argument("--truncate", default=0, type=int,
                         help="optionally truncate to a subset of hours")
@@ -311,9 +315,11 @@ if __name__ == "__main__":
 
     logging.basicConfig(format='%(relativeCreated) 9d %(message)s',
                         level=logging.DEBUG if args.verbose else logging.INFO)
+
+    assert args.tiny
     try:
         main(args)
-    except Exception as e:
+    except (Exception, KeyboardInterrupt) as e:
         print(e)
         import pdb
         pdb.post_mortem(e.__traceback__)

@@ -7,23 +7,22 @@ test: lint FORCE
 	python forecast.py -n 1 -v \
 	  --truncate=168 \
 	  --param-store-filename=/dev/null \
-	  --forecaster=/dev/null \
 	  --training-filename=/dev/null
 	@echo PASS
 
-tinytest: lint FORCE
+test2: lint FORCE
 	python forecast.py -n 1 -v \
-      --tiny=2 \
+	  --tiny=2 \
 	  --truncate=3 \
 	  --param-store-filename=/dev/null \
-	  --forecaster=/dev/null \
 	  --training-filename=/dev/null
-	python forecast.py -n 1 -v \
-      --tiny=2 \
+	@echo PASS
+
+test3: lint FORCE
+	python forecast.py --analytic-kl -n 1 -v \
+	  --tiny=2 \
 	  --truncate=3 \
-	  --analytic-kl \
 	  --param-store-filename=/dev/null \
-	  --forecaster=/dev/null \
 	  --training-filename=/dev/null
 	@echo PASS
 
