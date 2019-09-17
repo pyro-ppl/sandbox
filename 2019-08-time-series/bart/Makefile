@@ -13,7 +13,7 @@ test: lint FORCE
 test2: lint FORCE
 	python forecast.py -n 1 -v \
 	  --tiny=2 \
-	  --truncate=3 \
+	  --truncate=128 \
 	  --param-store-filename=/dev/null \
 	  --training-filename=/dev/null
 	@echo PASS

@@ -12,11 +12,12 @@ import funsor
 import funsor.distributions as fdist
 import funsor.ops as ops
 from funsor.domains import reals
-from funsor.interpreter import interpretation
+from funsor.interpreter import dispatched_interpretation, interpretation
 from funsor.montecarlo import monte_carlo
-from funsor.pyro.convert import dist_to_funsor, matrix_and_mvn_to_funsor, tensor_to_funsor
+from funsor.pyro.convert import (
+        AffineNormal, dist_to_funsor, matrix_and_mvn_to_funsor, tensor_to_funsor)
 from funsor.sum_product import sequential_sum_product
-from funsor.terms import reflect
+from funsor.terms import Subs, reflect, Binary, Funsor
 from preprocess import load_hourly_od
 
 
@@ -35,6 +36,24 @@ def make_time_features(args, begin_time, end_time):
     angles = time_mod_week.unsqueeze(-1) * torch.arange(1., 1. + order)
     return torch.cat([torch.cos(angles),
                       torch.sin(angles)], dim=-1)
+
+
+@dispatched_interpretation
+def monte_carlo_debug(cls, *args):
+    result = monte_carlo_debug.dispatch(cls, *args)
+    if result is None:
+        result = monte_carlo(cls, *args)
+    return result
+
+
+@monte_carlo_debug.register(Subs, AffineNormal, tuple)
+def _(term, subs):
+    print(f"DEBUG\n{term.pretty()}\n{subs}")
+
+
+@monte_carlo_debug.register(Binary, ops.GetitemOp, Funsor, Funsor)
+def _(op, lhs, rhs):
+    print(f"DEBUG\n{op}\n{lhs.pretty()}\n{rhs.pretty()}")
 
 
 class Model(nn.Module):
@@ -181,13 +200,13 @@ class Guide(nn.Module):
 
 def elbo_loss(model, guide, args, features, trip_counts):
     q = guide(features, trip_counts)
-    print(f"DEBUG q =\n{q.pretty()}")
+    # print(f"DEBUG q =\n{q.pretty()}")
     with interpretation(reflect):
         p_prior, p_likelihood = model(features, trip_counts)
-        print(f"DEBUG p_prior =\n{p_prior.pretty()}")
-        print(f"DEBUG p_likelihood =\n{p_likelihood.pretty()}")
+        # print(f"DEBUG p_prior =\n{p_prior.pretty()}")
+        # print(f"DEBUG p_likelihood =\n{p_likelihood.pretty()}")
         p = p_prior + p_likelihood
-        print(f"DEBUG p =\n{p.pretty()}")
+        # print(f"DEBUG p =\n{p.pretty()}")
 
     if args.analytic_kl:
         # We can compute the KL part exactly.
@@ -316,7 +335,6 @@ if __name__ == "__main__":
     logging.basicConfig(format='%(relativeCreated) 9d %(message)s',
                         level=logging.DEBUG if args.verbose else logging.INFO)
 
-    assert args.tiny
     try:
         main(args)
     except (Exception, KeyboardInterrupt) as e:

@@ -1,0 +1,4620 @@
+flake8
+python forecast.py -n 1 -v \
+	  --tiny=2 \
+	  --truncate=3 \
+	  --param-store-filename=/dev/null \
+	  --training-filename=/dev/null
+Tensor Tensor tuple str
+-> Tensor
+Tensor Tensor tuple str
+-> Tensor
+Variable str Domain
+-> Variable
+Normal Tensor Tensor Variable
+-> Normal
+Independent Normal str str str
+  eager_independent_trivial file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1444
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Tensor Tensor tuple str
+  -> Tensor
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Normal Tensor Tensor Variable
+    eager_normal file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/distributions.py 392
+    Binary SubOp Tensor Variable
+      binary_subtract file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 305
+      Unary NegOp Variable
+        eager_unary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 910
+        eager_unary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 499
+        unary_neg_variable file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 273
+        Number int str
+        -> Number
+        Binary MulOp Variable Number
+          binary_to_contract file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 263
+          Contraction NullOp MulOp frozenset Variable Number
+            eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+            normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          -> Contraction
+        -> Contraction
+      -> Contraction
+      Binary AddOp Tensor Contraction
+        binary_to_contract file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 263
+        Contraction NullOp AddOp frozenset Tensor Contraction
+          eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+          normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+          normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+        -> Contraction
+      -> Contraction
+    -> Contraction
+    Binary DivOp Contraction Tensor
+      binary_divide file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 310
+      Unary ReciprocalOp Tensor
+        eager_unary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 910
+        eager_unary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 255
+        Tensor Tensor tuple str
+        -> Tensor
+      -> Tensor
+      Binary MulOp Contraction Tensor
+        binary_to_contract file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 263
+        Contraction NullOp MulOp frozenset Contraction Tensor
+          eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+          normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+          normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+        -> Contraction
+      -> Contraction
+    -> Contraction
+    Number float str
+    -> Number
+    Subs Contraction tuple
+      eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+      Tensor Tensor tuple str
+      -> Tensor
+      Variable str Domain
+      -> Variable
+      eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+      Number int str
+      -> Number
+      Contraction NullOp MulOp frozenset Number Number
+        Contraction NullOp MulOp frozenset Number Number
+          eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+          eager_binary_number_number file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1071
+          Number float str
+          -> Number
+        -> Number
+      -> Number
+      Contraction NullOp AddOp frozenset Tensor Number
+        Contraction NullOp AddOp frozenset Tensor Number
+          eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+          eager_binary_tensor_number file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 379
+          Tensor Tensor tuple str
+          -> Tensor
+        -> Tensor
+      -> Tensor
+      Tensor Tensor tuple str
+      -> Tensor
+      Contraction NullOp MulOp frozenset Tensor Tensor
+        Contraction NullOp MulOp frozenset Tensor Tensor
+          eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+          eager_binary_tensor_tensor file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 391
+          Tensor Tensor tuple str
+          -> Tensor
+        -> Tensor
+      -> Tensor
+    -> Tensor
+    Number float str
+    -> Number
+    Subs Contraction tuple
+      eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+      Tensor Tensor tuple str
+      -> Tensor
+      Variable str Domain
+      -> Variable
+      eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+      Number int str
+      -> Number
+      Contraction NullOp MulOp frozenset Number Number
+        Contraction NullOp MulOp frozenset Number Number
+          eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+          eager_binary_number_number file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1071
+          Number float str
+          -> Number
+        -> Number
+      -> Number
+      Contraction NullOp AddOp frozenset Tensor Number
+        Contraction NullOp AddOp frozenset Tensor Number
+          eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+          eager_binary_tensor_number file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 379
+          Tensor Tensor tuple str
+          -> Tensor
+        -> Tensor
+      -> Tensor
+      Tensor Tensor tuple str
+      -> Tensor
+      Contraction NullOp MulOp frozenset Tensor Tensor
+        Contraction NullOp MulOp frozenset Tensor Tensor
+          eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+          eager_binary_tensor_tensor file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 391
+          Tensor Tensor tuple str
+          -> Tensor
+        -> Tensor
+      -> Tensor
+    -> Tensor
+    Binary SubOp Tensor Tensor
+      eager_binary_tensor_tensor file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 391
+      Tensor Tensor tuple str
+      -> Tensor
+    -> Tensor
+    Tensor Tensor tuple str
+    -> Tensor
+    Gaussian Tensor Tensor tuple
+    -> Gaussian
+    Binary AddOp Tensor Gaussian
+      binary_to_contract file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 263
+      Contraction NullOp AddOp frozenset Tensor Gaussian
+        eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+        normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+        normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+      -> Contraction
+    -> Contraction
+  -> Contraction
+-> Independent
+Variable str Domain
+-> Variable
+Subs Independent tuple
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Contraction NullOp AddOp frozenset Tensor Gaussian
+    Contraction NullOp AddOp frozenset Tensor Gaussian
+      eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+      normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+      normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+    -> Contraction
+  -> Contraction
+  Independent Contraction str str str
+    eager_independent_trivial file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1444
+  -> Independent
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1430
+  Independent Contraction str str str
+    eager_independent_trivial file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1444
+  -> Independent
+-> Independent
+Independent Independent str str str
+  eager_independent_trivial file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1444
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Tensor Tensor tuple str
+  -> Tensor
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/gaussian.py 344
+  Tensor Tensor tuple int
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Tensor Tensor tuple str
+  -> Tensor
+  Subs Tensor tuple
+    eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+    Tensor Tensor tuple str
+    -> Tensor
+    eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+    Tensor Tensor tuple str
+    -> Tensor
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Subs Tensor tuple
+    eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+    Tensor Tensor tuple str
+    -> Tensor
+    eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+    Tensor Tensor tuple str
+    -> Tensor
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+    eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+  -> Gaussian
+  Contraction NullOp AddOp frozenset Tensor Gaussian
+    Contraction NullOp AddOp frozenset Tensor Gaussian
+      eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+      normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+      normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+    -> Contraction
+  -> Contraction
+  Independent Contraction str str str
+    eager_independent_trivial file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1444
+  -> Independent
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1430
+  Independent Contraction str str str
+    eager_independent_trivial file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1444
+  -> Independent
+-> Independent
+DEBUG q =
+Independent
+│ Independent
+│ │ Contraction
+│ │ │ nullop
+│ │ │ add
+│ │ │ frozenset()
+│ │ │ tuple
+│ │ │ │ Tensor
+│ │ │ │ │ tensor([[-0.8493, -0.5595, -0.6062, -0.6...
+│ │ │ │ │ tuple
+│ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ 'time__BOUND_3'
+│ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ '_event_1__BOUND_1'
+│ │ │ │ │ │ │ bint(8)
+│ │ │ │ │ 'real'
+│ │ │ │ Gaussian
+│ │ │ │ │ tensor([[[-0.3614], [-0.1651], [-0.3421]...
+│ │ │ │ │ tensor([[[[1.2736]], [[2.0794]], [[1.983...
+│ │ │ │ │ tuple
+│ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ 'time__BOUND_3'
+│ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ '_event_1__BOUND_1'
+│ │ │ │ │ │ │ bint(8)
+│ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ 'value__BOUND_2'
+│ │ │ │ │ │ │ reals()
+│ │ 'gate_rate__BOUND_4'
+│ │ '_event_1__BOUND_1'
+│ │ 'value__BOUND_2'
+│ 'gate_rate_t'
+│ 'time__BOUND_3'
+│ 'gate_rate__BOUND_4'
+Variable str Domain
+-> Variable
+Variable str Domain
+-> Variable
+Binary GetitemOp Variable Variable
+-> Binary
+Variable str Domain
+-> Variable
+Function partial Domain tuple
+-> Function
+Function partial Domain tuple
+-> Function
+Tensor Tensor tuple str
+-> Tensor
+Tensor Tensor tuple str
+-> Tensor
+Variable str Domain
+-> Variable
+MultivariateNormal Tensor Tensor Variable
+-> MultivariateNormal
+Variable str Domain
+-> Variable
+Subs MultivariateNormal tuple
+  Variable str Domain
+  -> Variable
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  MultivariateNormal Tensor Tensor Variable
+  -> MultivariateNormal
+-> Subs
+Tensor Tensor tuple str
+-> Tensor
+Tensor Tensor tuple str
+-> Tensor
+Tensor Tensor tuple str
+-> Tensor
+Gaussian Tensor Tensor tuple
+-> Gaussian
+Binary AddOp Tensor Gaussian
+-> Binary
+Tensor Tensor tuple str
+-> Tensor
+Tensor Tensor tuple str
+-> Tensor
+Tensor Tensor tuple str
+-> Tensor
+Variable str Domain
+-> Variable
+Variable str Domain
+-> Variable
+AffineNormal Tensor Tensor Tensor Variable Variable
+-> AffineNormal
+Subs AffineNormal tuple
+  Variable str Domain
+  -> Variable
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+-> Subs
+Binary AddOp Binary Subs
+-> Binary
+Slice str int int int int
+-> Slice
+Variable str Domain
+-> Variable
+Subs Binary tuple
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/gaussian.py 344
+  Variable str Domain
+  -> Variable
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+-> Subs
+Slice str int int int int
+-> Slice
+Variable str Domain
+-> Variable
+Subs Binary tuple
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/gaussian.py 344
+  Variable str Domain
+  -> Variable
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+-> Subs
+Binary AddOp Subs Subs
+-> Binary
+Reduce LogAddExpOp Binary frozenset
+  Variable str Domain
+  -> Variable
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Binary AddOp Subs Subs
+  -> Binary
+-> Reduce
+Slice str int int int int
+-> Slice
+Subs Binary tuple
+  Variable str Domain
+  -> Variable
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Binary AddOp Tensor Gaussian
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+-> Subs
+Cat str tuple str
+  Variable str Domain
+  -> Variable
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1125
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1125
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Binary AddOp Subs Subs
+  -> Binary
+  Reduce LogAddExpOp Binary frozenset
+  -> Reduce
+  Variable str Domain
+  -> Variable
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Binary AddOp Tensor Gaussian
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Slice str int int int int
+  -> Slice
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1125
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+-> Cat
+Slice str int int int int
+-> Slice
+Variable str Domain
+-> Variable
+Subs Cat tuple
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/gaussian.py 344
+  Variable str Domain
+  -> Variable
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Subs Subs tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Binary AddOp Subs Subs
+  -> Binary
+  Reduce LogAddExpOp Binary frozenset
+  -> Reduce
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/gaussian.py 344
+  Variable str Domain
+  -> Variable
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Cat str tuple str
+  -> Cat
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1309
+  Cat str tuple str
+  -> Cat
+-> Subs
+Slice str int int int int
+-> Slice
+Variable str Domain
+-> Variable
+Subs Cat tuple
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/gaussian.py 344
+  Variable str Domain
+  -> Variable
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Subs Subs tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Binary AddOp Subs Subs
+  -> Binary
+  Reduce LogAddExpOp Binary frozenset
+  -> Reduce
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/gaussian.py 344
+  Variable str Domain
+  -> Variable
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Cat str tuple str
+  -> Cat
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1309
+  Cat str tuple str
+  -> Cat
+-> Subs
+Binary AddOp Subs Subs
+-> Binary
+Reduce LogAddExpOp Binary frozenset
+  Variable str Domain
+  -> Variable
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Subs Subs tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Binary AddOp Subs Subs
+  -> Binary
+  Reduce LogAddExpOp Binary frozenset
+  -> Reduce
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Cat str tuple str
+  -> Cat
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Slice str int int int int
+  -> Slice
+  Subs Cat tuple
+  -> Subs
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Subs Subs tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Binary AddOp Subs Subs
+  -> Binary
+  Reduce LogAddExpOp Binary frozenset
+  -> Reduce
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Cat str tuple str
+  -> Cat
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Slice str int int int int
+  -> Slice
+  Subs Cat tuple
+  -> Subs
+  Binary AddOp Subs Subs
+  -> Binary
+-> Reduce
+Number int int
+-> Number
+Subs Reduce tuple
+  Variable str Domain
+  -> Variable
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Subs Subs tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Binary AddOp Subs Subs
+  -> Binary
+  Reduce LogAddExpOp Binary frozenset
+  -> Reduce
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Cat str tuple str
+  -> Cat
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1125
+  Slice str int int int int
+  -> Slice
+  Subs Cat tuple
+  -> Subs
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Subs Subs tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Binary AddOp Subs Subs
+  -> Binary
+  Reduce LogAddExpOp Binary frozenset
+  -> Reduce
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Cat str tuple str
+  -> Cat
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1125
+  Slice str int int int int
+  -> Slice
+  Subs Cat tuple
+  -> Subs
+  Binary AddOp Subs Subs
+  -> Binary
+  Reduce LogAddExpOp Binary frozenset
+  -> Reduce
+-> Subs
+Binary AddOp Subs Subs
+-> Binary
+Reduce LogAddExpOp Binary frozenset
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/gaussian.py 344
+  Variable str Domain
+  -> Variable
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Subs Subs tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Subs Subs tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Binary AddOp Subs Subs
+  -> Binary
+  Reduce LogAddExpOp Binary frozenset
+  -> Reduce
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/gaussian.py 344
+  Variable str Domain
+  -> Variable
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Subs Subs tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Cat str tuple str
+  -> Cat
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  Subs Cat tuple
+  -> Subs
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Subs Subs tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/gaussian.py 344
+  Variable str Domain
+  -> Variable
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Subs Subs tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Binary AddOp Subs Subs
+  -> Binary
+  Reduce LogAddExpOp Binary frozenset
+  -> Reduce
+  Tensor Tensor tuple str
+  -> Tensor
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/gaussian.py 344
+  Variable str Domain
+  -> Variable
+  Gaussian Tensor Tensor tuple
+  -> Gaussian
+  Subs Gaussian tuple
+  -> Subs
+  Subs Subs tuple
+  -> Subs
+  Binary AddOp Tensor Subs
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Variable str Domain
+  -> Variable
+  AffineNormal Tensor Tensor Tensor Variable Variable
+  -> AffineNormal
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs AffineNormal tuple
+  -> Subs
+  Binary AddOp Binary Subs
+  -> Binary
+  Slice str int int int int
+  -> Slice
+  Subs Binary tuple
+  -> Subs
+  Cat str tuple str
+  -> Cat
+  Variable str Domain
+  -> Variable
+  Slice str int int int int
+  -> Slice
+  Subs Cat tuple
+  -> Subs
+  Binary AddOp Subs Subs
+  -> Binary
+  Reduce LogAddExpOp Binary frozenset
+  -> Reduce
+  Number int int
+  -> Number
+  Subs Reduce tuple
+  -> Subs
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Variable str Domain
+  -> Variable
+  MultivariateNormal Tensor Tensor Variable
+  -> MultivariateNormal
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Subs MultivariateNormal tuple
+  -> Subs
+  Binary AddOp Subs Subs
+  -> Binary
+-> Reduce
+Subs Function tuple
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Function partial Domain tuple
+  -> Function
+-> Subs
+Subs Function tuple
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Function partial Domain tuple
+  -> Function
+-> Subs
+Variable str Domain
+-> Variable
+Binary GetitemOp Subs Variable
+-> Binary
+Variable str Domain
+-> Variable
+Binary GetitemOp Binary Variable
+-> Binary
+Variable str Domain
+-> Variable
+Categorical Binary Variable
+-> Categorical
+Tensor Tensor tuple str
+-> Tensor
+Variable str Domain
+-> Variable
+Binary GetitemOp Subs Variable
+-> Binary
+Variable str Domain
+-> Variable
+Binary GetitemOp Binary Variable
+-> Binary
+Poisson Binary Tensor
+-> Poisson
+Number int str
+-> Number
+Number int str
+-> Number
+Tensor Tensor tuple str
+-> Tensor
+Tensor Tensor tuple str
+-> Tensor
+Delta Tensor Tensor Tensor
+-> Delta
+Stack str tuple
+-> Stack
+Binary AddOp Categorical Stack
+-> Binary
+Reduce LogAddExpOp Binary frozenset
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Function partial Domain tuple
+  -> Function
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs Function tuple
+  -> Subs
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Subs Variable
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Binary Variable
+  -> Binary
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Categorical Binary Variable
+  -> Categorical
+  Variable str Domain
+  -> Variable
+  Function partial Domain tuple
+  -> Function
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs Function tuple
+  -> Subs
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Subs Variable
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Binary GetitemOp Binary Variable
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  Poisson Binary Tensor
+  -> Poisson
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Delta Tensor Tensor Tensor
+  -> Delta
+  Stack str tuple
+  -> Stack
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1220
+  Stack str tuple
+  -> Stack
+  Binary AddOp Categorical Stack
+  -> Binary
+-> Reduce
+Reduce AddOp Reduce frozenset
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  Function partial Domain tuple
+  -> Function
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs Function tuple
+  -> Subs
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Binary GetitemOp Subs Variable
+  -> Binary
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Binary GetitemOp Binary Variable
+  -> Binary
+  Variable str Domain
+  -> Variable
+  Categorical Binary Variable
+  -> Categorical
+  Variable str Domain
+  -> Variable
+  Function partial Domain tuple
+  -> Function
+  Variable str Domain
+  -> Variable
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Binary GetitemOp Variable Variable
+  -> Binary
+  Subs Function tuple
+  -> Subs
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Binary GetitemOp Subs Variable
+  -> Binary
+  Variable str Domain
+  -> Variable
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+  Binary GetitemOp Binary Variable
+  -> Binary
+  Tensor Tensor tuple str
+  -> Tensor
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+  Tensor Tensor tuple str
+  -> Tensor
+  Poisson Binary Tensor
+  -> Poisson
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  Tensor Tensor tuple str
+  -> Tensor
+  eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+  Tensor Tensor tuple str
+  -> Tensor
+  Delta Tensor Tensor Tensor
+  -> Delta
+  Stack str tuple
+  -> Stack
+  Binary AddOp Categorical Stack
+  -> Binary
+  Reduce LogAddExpOp Binary frozenset
+  -> Reduce
+-> Reduce
+DEBUG p_prior =
+Reduce
+│ logaddexp
+│ Binary
+│ │ add
+│ │ Subs
+│ │ │ Reduce
+│ │ │ │ logaddexp
+│ │ │ │ Binary
+│ │ │ │ │ add
+│ │ │ │ │ Subs
+│ │ │ │ │ │ Cat
+│ │ │ │ │ │ │ 'time__BOUND_15'
+│ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ Reduce
+│ │ │ │ │ │ │ │ │ logaddexp
+│ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor(11.0692, grad_fn=<SubBackward0>)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Gaussian
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([-0., -0., -0., -0., -0., -0., -0...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 98.0100,   0.0000,   0.0000,  ...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state__BOUND_20'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_7'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ AffineNormal
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 0.0266, -0.2460, -0.4721, -0.2...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[-0.0036, -0.2849,  0.0371,  0.1...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_8'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[0.5975, 0.8641, 1.0236, 0.7148,...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_8'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_7'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate_t'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(3, 8)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_8'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_7'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ '_drop_0__BOUND_11'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_8'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Slice
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_13'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 0
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 3
+│ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor(11.0692, grad_fn=<SubBackward0>)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Gaussian
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([-0., -0., -0., -0., -0., -0., -0...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 98.0100,   0.0000,   0.0000,  ...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state__BOUND_9'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_14'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ AffineNormal
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 0.0266, -0.2460, -0.4721, -0.2...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[-0.0036, -0.2849,  0.0371,  0.1...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_10'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[0.5975, 0.8641, 1.0236, 0.7148,...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_10'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_14'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate_t'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(3, 8)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_10'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'state__BOUND_9'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ '_drop_0__BOUND_11'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_10'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Slice
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_13'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 1
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 3
+│ │ │ │ │ │ │ │ │ frozenset({'_drop_0__BOUND_11'})
+│ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ tensor(11.0692, grad_fn=<SubBackward0>)
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ Gaussian
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([-0., -0., -0., -0., -0., -0., -0...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 98.0100,   0.0000,   0.0000,  ...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state__BOUND_20'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_14'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ AffineNormal
+│ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 0.0266, -0.2460, -0.4721, -0.2...
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[-0.0036, -0.2849,  0.0371,  0.1...
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_12'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[0.5975, 0.8641, 1.0236, 0.7148,...
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_12'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_14'
+│ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate_t'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(3, 8)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_12'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_12'
+│ │ │ │ │ │ │ │ │ │ │ Slice
+│ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_13'
+│ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ 3
+│ │ │ │ │ │ │ │ │ │ │ │ 1
+│ │ │ │ │ │ │ │ │ │ │ │ 3
+│ │ │ │ │ │ │ 'time__BOUND_13'
+│ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ 'state(time=1)__BOUND_14'
+│ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ '_drop_0__BOUND_18'
+│ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ 'time__BOUND_15'
+│ │ │ │ │ │ │ │ Slice
+│ │ │ │ │ │ │ │ │ 'time__BOUND_19'
+│ │ │ │ │ │ │ │ │ 0
+│ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ Subs
+│ │ │ │ │ │ Cat
+│ │ │ │ │ │ │ 'time__BOUND_17'
+│ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ Reduce
+│ │ │ │ │ │ │ │ │ logaddexp
+│ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor(11.0692, grad_fn=<SubBackward0>)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Gaussian
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([-0., -0., -0., -0., -0., -0., -0...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 98.0100,   0.0000,   0.0000,  ...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state__BOUND_16'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_7'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ AffineNormal
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 0.0266, -0.2460, -0.4721, -0.2...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[-0.0036, -0.2849,  0.0371,  0.1...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_8'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[0.5975, 0.8641, 1.0236, 0.7148,...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_8'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_7'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate_t'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(3, 8)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_8'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_7'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ '_drop_0__BOUND_11'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_8'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Slice
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_13'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 0
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 3
+│ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor(11.0692, grad_fn=<SubBackward0>)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Gaussian
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([-0., -0., -0., -0., -0., -0., -0...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 98.0100,   0.0000,   0.0000,  ...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state__BOUND_9'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_21'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ AffineNormal
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 0.0266, -0.2460, -0.4721, -0.2...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[-0.0036, -0.2849,  0.0371,  0.1...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_10'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[0.5975, 0.8641, 1.0236, 0.7148,...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_10'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_21'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate_t'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(3, 8)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_10'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'state__BOUND_9'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ '_drop_0__BOUND_11'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_10'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Slice
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_13'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 1
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 3
+│ │ │ │ │ │ │ │ │ frozenset({'_drop_0__BOUND_11'})
+│ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ tensor(11.0692, grad_fn=<SubBackward0>)
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ Gaussian
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([-0., -0., -0., -0., -0., -0., -0...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 98.0100,   0.0000,   0.0000,  ...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state__BOUND_16'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_21'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ AffineNormal
+│ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 0.0266, -0.2460, -0.4721, -0.2...
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[-0.0036, -0.2849,  0.0371,  0.1...
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_12'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[0.5975, 0.8641, 1.0236, 0.7148,...
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_12'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_21'
+│ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate_t'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(3, 8)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_12'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_12'
+│ │ │ │ │ │ │ │ │ │ │ Slice
+│ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_13'
+│ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ 3
+│ │ │ │ │ │ │ │ │ │ │ │ 1
+│ │ │ │ │ │ │ │ │ │ │ │ 3
+│ │ │ │ │ │ │ 'time__BOUND_13'
+│ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ 'state__BOUND_16'
+│ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ '_drop_0__BOUND_18'
+│ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ 'time__BOUND_17'
+│ │ │ │ │ │ │ │ Slice
+│ │ │ │ │ │ │ │ │ 'time__BOUND_19'
+│ │ │ │ │ │ │ │ │ 1
+│ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ 2
+│ │ │ │ frozenset({'_drop_0__BOUND_18'})
+│ │ │ tuple
+│ │ │ │ tuple
+│ │ │ │ │ 'time__BOUND_19'
+│ │ │ │ │ Number
+│ │ │ │ │ │ 0
+│ │ │ │ │ │ 1
+│ │ Subs
+│ │ │ MultivariateNormal
+│ │ │ │ Tensor
+│ │ │ │ │ tensor([0., 0., 0., 0., 0., 0., 0., 0.])
+│ │ │ │ │ tuple
+│ │ │ │ │ 'real'
+│ │ │ │ Tensor
+│ │ │ │ │ tensor([[10.,  0.,  0.,  0.,  0.,  0.,  ...
+│ │ │ │ │ tuple
+│ │ │ │ │ 'real'
+│ │ │ │ Variable
+│ │ │ │ │ 'value__BOUND_5'
+│ │ │ │ │ reals(8,)
+│ │ │ tuple
+│ │ │ │ tuple
+│ │ │ │ │ 'value__BOUND_5'
+│ │ │ │ │ Variable
+│ │ │ │ │ │ 'state__BOUND_20'
+│ │ │ │ │ │ reals(8,)
+│ frozenset({'state__BOUND_20', 'state(tim...
+DEBUG p_likelihood =
+Reduce
+│ add
+│ Reduce
+│ │ logaddexp
+│ │ Binary
+│ │ │ add
+│ │ │ Categorical
+│ │ │ │ Binary
+│ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ Binary
+│ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ Function
+│ │ │ │ │ │ │ │ functools.partial(<function _select at 0...
+│ │ │ │ │ │ │ │ reals(2, 2, 2)
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_22'
+│ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_22'
+│ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ 'gate_rate_t'
+│ │ │ │ │ │ │ │ │ │ │ reals(3, 8)
+│ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_26'
+│ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ 'origin__BOUND_25'
+│ │ │ │ │ │ │ bint(2)
+│ │ │ │ │ Variable
+│ │ │ │ │ │ 'destin__BOUND_27'
+│ │ │ │ │ │ bint(2)
+│ │ │ │ Variable
+│ │ │ │ │ 'gated__BOUND_24'
+│ │ │ │ │ bint(2)
+│ │ │ Stack
+│ │ │ │ 'gated__BOUND_24'
+│ │ │ │ tuple
+│ │ │ │ │ Poisson
+│ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ Function
+│ │ │ │ │ │ │ │ │ │ functools.partial(<function _select at 0...
+│ │ │ │ │ │ │ │ │ │ reals(2, 2)
+│ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_23'
+│ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_23'
+│ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate_t'
+│ │ │ │ │ │ │ │ │ │ │ │ │ reals(3, 8)
+│ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_26'
+│ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ 'origin__BOUND_25'
+│ │ │ │ │ │ │ │ │ bint(2)
+│ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ 'destin__BOUND_27'
+│ │ │ │ │ │ │ │ bint(2)
+│ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ tensor([[[ 1.,  1.], [ 5.,  0.]], [[ 0.,...
+│ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ 'time__BOUND_26'
+│ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ 'origin__BOUND_25'
+│ │ │ │ │ │ │ │ │ bint(2)
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ 'destin__BOUND_27'
+│ │ │ │ │ │ │ │ │ bint(2)
+│ │ │ │ │ │ │ 'real'
+│ │ │ │ │ Delta
+│ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ tensor(0.)
+│ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ tensor(0.)
+│ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ tensor([[[ 1.,  1.], [ 5.,  0.]], [[ 0.,...
+│ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ 'time__BOUND_26'
+│ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ 'origin__BOUND_25'
+│ │ │ │ │ │ │ │ │ bint(2)
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ 'destin__BOUND_27'
+│ │ │ │ │ │ │ │ │ bint(2)
+│ │ │ │ │ │ │ 'real'
+│ │ frozenset({'gated__BOUND_24'})
+│ frozenset({'origin__BOUND_25', 'destin__...
+Binary AddOp Reduce Reduce
+-> Binary
+DEBUG p =
+Binary
+│ add
+│ Reduce
+│ │ logaddexp
+│ │ Binary
+│ │ │ add
+│ │ │ Subs
+│ │ │ │ Reduce
+│ │ │ │ │ logaddexp
+│ │ │ │ │ Binary
+│ │ │ │ │ │ add
+│ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ Cat
+│ │ │ │ │ │ │ │ 'time__BOUND_15'
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ Reduce
+│ │ │ │ │ │ │ │ │ │ logaddexp
+│ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor(11.0692, grad_fn=<SubBackward0>)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Gaussian
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([-0., -0., -0., -0., -0., -0., -0...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 98.0100,   0.0000,   0.0000,  ...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state__BOUND_20'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_7'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ AffineNormal
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 0.0266, -0.2460, -0.4721, -0.2...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[-0.0036, -0.2849,  0.0371,  0.1...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_8'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[0.5975, 0.8641, 1.0236, 0.7148,...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_8'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_7'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate_t'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(3, 8)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_8'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_7'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ '_drop_0__BOUND_11'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_8'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Slice
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_13'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 0
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 3
+│ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor(11.0692, grad_fn=<SubBackward0>)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Gaussian
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([-0., -0., -0., -0., -0., -0., -0...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 98.0100,   0.0000,   0.0000,  ...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state__BOUND_9'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_14'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ AffineNormal
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 0.0266, -0.2460, -0.4721, -0.2...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[-0.0036, -0.2849,  0.0371,  0.1...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_10'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[0.5975, 0.8641, 1.0236, 0.7148,...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_10'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_14'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate_t'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(3, 8)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_10'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state__BOUND_9'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ '_drop_0__BOUND_11'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_10'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Slice
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_13'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 1
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 3
+│ │ │ │ │ │ │ │ │ │ frozenset({'_drop_0__BOUND_11'})
+│ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ tensor(11.0692, grad_fn=<SubBackward0>)
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Gaussian
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([-0., -0., -0., -0., -0., -0., -0...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 98.0100,   0.0000,   0.0000,  ...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state__BOUND_20'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_14'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ AffineNormal
+│ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 0.0266, -0.2460, -0.4721, -0.2...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[-0.0036, -0.2849,  0.0371,  0.1...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_12'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[0.5975, 0.8641, 1.0236, 0.7148,...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_12'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_14'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate_t'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(3, 8)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_12'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_12'
+│ │ │ │ │ │ │ │ │ │ │ │ Slice
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_13'
+│ │ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ │ 3
+│ │ │ │ │ │ │ │ │ │ │ │ │ 1
+│ │ │ │ │ │ │ │ │ │ │ │ │ 3
+│ │ │ │ │ │ │ │ 'time__BOUND_13'
+│ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_14'
+│ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ '_drop_0__BOUND_18'
+│ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ 'time__BOUND_15'
+│ │ │ │ │ │ │ │ │ Slice
+│ │ │ │ │ │ │ │ │ │ 'time__BOUND_19'
+│ │ │ │ │ │ │ │ │ │ 0
+│ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ Cat
+│ │ │ │ │ │ │ │ 'time__BOUND_17'
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ Reduce
+│ │ │ │ │ │ │ │ │ │ logaddexp
+│ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor(11.0692, grad_fn=<SubBackward0>)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Gaussian
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([-0., -0., -0., -0., -0., -0., -0...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 98.0100,   0.0000,   0.0000,  ...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state__BOUND_16'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_7'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ AffineNormal
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 0.0266, -0.2460, -0.4721, -0.2...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[-0.0036, -0.2849,  0.0371,  0.1...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_8'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[0.5975, 0.8641, 1.0236, 0.7148,...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_8'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_7'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate_t'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(3, 8)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_8'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_7'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ '_drop_0__BOUND_11'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_8'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Slice
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_13'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 0
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 3
+│ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor(11.0692, grad_fn=<SubBackward0>)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Gaussian
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([-0., -0., -0., -0., -0., -0., -0...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 98.0100,   0.0000,   0.0000,  ...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state__BOUND_9'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_21'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ AffineNormal
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 0.0266, -0.2460, -0.4721, -0.2...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[-0.0036, -0.2849,  0.0371,  0.1...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_10'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[0.5975, 0.8641, 1.0236, 0.7148,...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_10'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_21'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate_t'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(3, 8)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_10'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state__BOUND_9'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ '_drop_0__BOUND_11'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_10'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Slice
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_13'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 1
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 3
+│ │ │ │ │ │ │ │ │ │ frozenset({'_drop_0__BOUND_11'})
+│ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ add
+│ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ tensor(11.0692, grad_fn=<SubBackward0>)
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Gaussian
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([-0., -0., -0., -0., -0., -0., -0...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 98.0100,   0.0000,   0.0000,  ...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state__BOUND_16'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_21'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ │ │ AffineNormal
+│ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[ 0.0266, -0.2460, -0.4721, -0.2...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[-0.0036, -0.2849,  0.0371,  0.1...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_12'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tensor([[0.5975, 0.8641, 1.0236, 0.7148,...
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_12'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'state(time=1)__BOUND_21'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_6'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate_t'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(3, 8)
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_12'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_12'
+│ │ │ │ │ │ │ │ │ │ │ │ Slice
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_13'
+│ │ │ │ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ │ │ │ 3
+│ │ │ │ │ │ │ │ │ │ │ │ │ 1
+│ │ │ │ │ │ │ │ │ │ │ │ │ 3
+│ │ │ │ │ │ │ │ 'time__BOUND_13'
+│ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ 'state__BOUND_16'
+│ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ '_drop_0__BOUND_18'
+│ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ 'time__BOUND_17'
+│ │ │ │ │ │ │ │ │ Slice
+│ │ │ │ │ │ │ │ │ │ 'time__BOUND_19'
+│ │ │ │ │ │ │ │ │ │ 1
+│ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ │ │ │ │ │ 2
+│ │ │ │ │ frozenset({'_drop_0__BOUND_18'})
+│ │ │ │ tuple
+│ │ │ │ │ tuple
+│ │ │ │ │ │ 'time__BOUND_19'
+│ │ │ │ │ │ Number
+│ │ │ │ │ │ │ 0
+│ │ │ │ │ │ │ 1
+│ │ │ Subs
+│ │ │ │ MultivariateNormal
+│ │ │ │ │ Tensor
+│ │ │ │ │ │ tensor([0., 0., 0., 0., 0., 0., 0., 0.])
+│ │ │ │ │ │ tuple
+│ │ │ │ │ │ 'real'
+│ │ │ │ │ Tensor
+│ │ │ │ │ │ tensor([[10.,  0.,  0.,  0.,  0.,  0.,  ...
+│ │ │ │ │ │ tuple
+│ │ │ │ │ │ 'real'
+│ │ │ │ │ Variable
+│ │ │ │ │ │ 'value__BOUND_5'
+│ │ │ │ │ │ reals(8,)
+│ │ │ │ tuple
+│ │ │ │ │ tuple
+│ │ │ │ │ │ 'value__BOUND_5'
+│ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ 'state__BOUND_20'
+│ │ │ │ │ │ │ reals(8,)
+│ │ frozenset({'state__BOUND_20', 'state(tim...
+│ Reduce
+│ │ add
+│ │ Reduce
+│ │ │ logaddexp
+│ │ │ Binary
+│ │ │ │ add
+│ │ │ │ Categorical
+│ │ │ │ │ Binary
+│ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ Function
+│ │ │ │ │ │ │ │ │ functools.partial(<function _select at 0...
+│ │ │ │ │ │ │ │ │ reals(2, 2, 2)
+│ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_22'
+│ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_22'
+│ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate_t'
+│ │ │ │ │ │ │ │ │ │ │ │ reals(3, 8)
+│ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_26'
+│ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ 'origin__BOUND_25'
+│ │ │ │ │ │ │ │ bint(2)
+│ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ 'destin__BOUND_27'
+│ │ │ │ │ │ │ bint(2)
+│ │ │ │ │ Variable
+│ │ │ │ │ │ 'gated__BOUND_24'
+│ │ │ │ │ │ bint(2)
+│ │ │ │ Stack
+│ │ │ │ │ 'gated__BOUND_24'
+│ │ │ │ │ tuple
+│ │ │ │ │ │ Poisson
+│ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ │ Subs
+│ │ │ │ │ │ │ │ │ │ Function
+│ │ │ │ │ │ │ │ │ │ │ functools.partial(<function _select at 0...
+│ │ │ │ │ │ │ │ │ │ │ reals(2, 2)
+│ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_23'
+│ │ │ │ │ │ │ │ │ │ │ │ │ reals(8,)
+│ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate__BOUND_23'
+│ │ │ │ │ │ │ │ │ │ │ │ Binary
+│ │ │ │ │ │ │ │ │ │ │ │ │ GetitemOp(0)
+│ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'gate_rate_t'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ reals(3, 8)
+│ │ │ │ │ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ 'time__BOUND_26'
+│ │ │ │ │ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ │ 'origin__BOUND_25'
+│ │ │ │ │ │ │ │ │ │ bint(2)
+│ │ │ │ │ │ │ │ Variable
+│ │ │ │ │ │ │ │ │ 'destin__BOUND_27'
+│ │ │ │ │ │ │ │ │ bint(2)
+│ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ tensor([[[ 1.,  1.], [ 5.,  0.]], [[ 0.,...
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ 'time__BOUND_26'
+│ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ 'origin__BOUND_25'
+│ │ │ │ │ │ │ │ │ │ bint(2)
+│ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ 'destin__BOUND_27'
+│ │ │ │ │ │ │ │ │ │ bint(2)
+│ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ Delta
+│ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ tensor(0.)
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ tensor(0.)
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ 'real'
+│ │ │ │ │ │ │ Tensor
+│ │ │ │ │ │ │ │ tensor([[[ 1.,  1.], [ 5.,  0.]], [[ 0.,...
+│ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ 'time__BOUND_26'
+│ │ │ │ │ │ │ │ │ │ bint(3)
+│ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ 'origin__BOUND_25'
+│ │ │ │ │ │ │ │ │ │ bint(2)
+│ │ │ │ │ │ │ │ │ tuple
+│ │ │ │ │ │ │ │ │ │ 'destin__BOUND_27'
+│ │ │ │ │ │ │ │ │ │ bint(2)
+│ │ │ │ │ │ │ │ 'real'
+│ │ │ frozenset({'gated__BOUND_24'})
+│ │ frozenset({'origin__BOUND_25', 'destin__...
+Binary SubOp Binary Independent
+-> Binary
+Integrate Independent Binary frozenset
+  monte_carlo_integrate file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/montecarlo.py 43
+  unscaled_sample file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1422
+  Tensor Tensor tuple str
+  -> Tensor
+  Number float str
+  -> Number
+  Delta tuple
+  -> Delta
+  Tensor Tensor tuple str
+  -> Tensor
+  Binary AddOp Delta Tensor
+    eager_add_delta_funsor file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/delta.py 183
+    binary_to_contract file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 263
+    Contraction NullOp AddOp frozenset Delta Tensor
+      eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+      eager_add_delta_funsor file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/delta.py 183
+      normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+      normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+    -> Contraction
+  -> Contraction
+  Contraction NullOp AddOp frozenset Tensor Contraction
+    eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+    normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+    Contraction NullOp AddOp frozenset Tensor Delta Tensor
+      eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+      eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+      Contraction NullOp AddOp frozenset Tensor Delta
+        eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+        eager_add_funsor_delta file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/delta.py 192
+        normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+        Contraction NullOp AddOp frozenset Delta Tensor
+          eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+          eager_add_delta_funsor file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/delta.py 183
+          normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+          normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+        -> Contraction
+      -> Contraction
+      normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+      Contraction NullOp AddOp frozenset Contraction Tensor
+        eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+        normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+        normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+        Contraction NullOp AddOp frozenset Delta Tensor Tensor
+          eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+          eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+          Contraction NullOp AddOp frozenset Delta Tensor
+            eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+            eager_add_delta_funsor file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/delta.py 183
+            normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          -> Contraction
+          normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          Contraction NullOp AddOp frozenset Delta Tensor
+            eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+            eager_add_delta_funsor file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/delta.py 183
+            normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          -> Contraction
+          normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          Contraction NullOp AddOp frozenset Tensor Tensor
+            eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+            eager_binary_tensor_tensor file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 391
+            Tensor Tensor tuple str
+            -> Tensor
+          -> Tensor
+          normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          Contraction NullOp AddOp frozenset Delta Tensor
+            eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+            eager_add_delta_funsor file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/delta.py 183
+            normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          -> Contraction
+        -> Contraction
+      -> Contraction
+    -> Contraction
+  -> Contraction
+  Independent Contraction str str str
+    eager_independent_trivial file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1444
+  -> Independent
+  Independent Independent str str str
+    eager_independent_trivial file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1444
+  -> Independent
+  Integrate Independent Binary frozenset
+    monte_carlo_integrate file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/montecarlo.py 43
+    unscaled_sample file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1422
+    Contraction NullOp AddOp frozenset Delta Tensor
+      eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+      eager_add_delta_funsor file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/delta.py 183
+      normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+      normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+    -> Contraction
+    Independent Contraction str str str
+      eager_independent_trivial file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1444
+    -> Independent
+    Independent Independent str str str
+      eager_independent_trivial file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1444
+    -> Independent
+    normalize_integrate file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/joint.py 135
+    Unary ExpOp Independent
+      eager_unary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 910
+      eager_unary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 499
+    -> Unary
+    Contraction AddOp MulOp frozenset Unary Binary
+      eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+      normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+      normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+      Variable str Domain
+      -> Variable
+      Tensor Tensor tuple str
+      -> Tensor
+      Number float str
+      -> Number
+      Delta tuple
+      -> Delta
+      Tensor Tensor tuple str
+      -> Tensor
+      Contraction NullOp AddOp frozenset Delta Tensor
+        Contraction NullOp AddOp frozenset Delta Tensor
+          eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+          eager_add_delta_funsor file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/delta.py 183
+          normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+          normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+        -> Contraction
+      -> Contraction
+      Independent Contraction str str str
+        eager_independent_trivial file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1444
+      -> Independent
+      Independent Independent str str str
+        eager_independent_trivial file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1444
+      -> Independent
+      eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1430
+      Independent Independent str str str
+        eager_independent_trivial file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1444
+      -> Independent
+      Unary ExpOp Independent
+        eager_unary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 910
+        eager_unary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 499
+      -> Unary
+      Tensor Tensor tuple str
+      -> Tensor
+      Gaussian Tensor Tensor tuple
+      -> Gaussian
+      Subs Gaussian tuple
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+      -> Gaussian
+      Subs Gaussian tuple
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+      -> Gaussian
+      Binary AddOp Tensor Gaussian
+        binary_to_contract file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 263
+        Contraction NullOp AddOp frozenset Tensor Gaussian
+          eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+          normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+          normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+        -> Contraction
+      -> Contraction
+      Tensor Tensor tuple str
+      -> Tensor
+      Tensor Tensor tuple str
+      -> Tensor
+      Tensor Tensor tuple str
+      -> Tensor
+      Variable str Domain
+      -> Variable
+      Variable str Domain
+      -> Variable
+      AffineNormal Tensor Tensor Tensor Variable Variable
+      -> AffineNormal
+      Variable str Domain
+      -> Variable
+      eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+      Variable str Domain
+      -> Variable
+      Binary GetitemOp Variable Variable
+        _ file:///Users/fritzobermeyer/github/pyro-ppl/sandbox/2019-08-time-series/bart/forecast.py 54
+DEBUG
+GetitemOp(0)
+Variable
+│ 'gate_rate_t__BOUND_28'
+│ reals(3, 8)
+Variable
+│ 'time__BOUND_8'
+│ bint(3)
+      -> Binary
+      Subs AffineNormal tuple
+        _ file:///Users/fritzobermeyer/github/pyro-ppl/sandbox/2019-08-time-series/bart/forecast.py 49
+DEBUG
+AffineNormal
+│ Tensor
+│ │ tensor([[ 0.0266, -0.2460, -0.4721, -0.2...
+│ │ tuple
+│ │ 'real'
+│ Tensor
+│ │ tensor([[-0.0036, -0.2849,  0.0371,  0.1...
+│ │ tuple
+│ │ │ tuple
+│ │ │ │ 'time__BOUND_8'
+│ │ │ │ bint(3)
+│ │ 'real'
+│ Tensor
+│ │ tensor([[0.5975, 0.8641, 1.0236, 0.7148,...
+│ │ tuple
+│ │ │ tuple
+│ │ │ │ 'time__BOUND_8'
+│ │ │ │ bint(3)
+│ │ 'real'
+│ Variable
+│ │ 'state(time=1)__BOUND_7'
+│ │ reals(8,)
+│ Variable
+│ │ 'gate_rate__BOUND_6'
+│ │ reals(8,)
+(('gate_rate__BOUND_6', Binary(GetitemOp(0), gate_rate_t__BOUND_28, time__BOUND_8)),)
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+        Tensor Tensor tuple str
+        -> Tensor
+        Tensor Tensor tuple str
+        -> Tensor
+        Tensor Tensor tuple str
+        -> Tensor
+        Variable str Domain
+        -> Variable
+        Variable str Domain
+        -> Variable
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+        AffineNormal Tensor Tensor Tensor Variable Binary
+        -> AffineNormal
+      -> AffineNormal
+      Binary AddOp Contraction AffineNormal
+        binary_to_contract file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 263
+        Contraction NullOp AddOp frozenset Contraction AffineNormal
+          eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+          normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+          normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal
+            eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+            eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+            Contraction NullOp AddOp frozenset Tensor Gaussian
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Tensor AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Gaussian AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          -> Contraction
+        -> Contraction
+      -> Contraction
+      Variable str Domain
+      -> Variable
+      Slice str int int int int
+      -> Slice
+      Subs Contraction tuple
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+        Tensor Tensor tuple str
+        -> Tensor
+        Gaussian Tensor Tensor tuple
+        -> Gaussian
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/gaussian.py 344
+        Variable str Domain
+        -> Variable
+        Gaussian Tensor Tensor tuple
+        -> Gaussian
+        Subs Gaussian tuple
+          eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+        -> Gaussian
+        Tensor Tensor tuple str
+        -> Tensor
+        Tensor Tensor tuple str
+        -> Tensor
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+        Tensor Tensor tuple str
+        -> Tensor
+        Tensor Tensor tuple str
+        -> Tensor
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+        Tensor Tensor tuple str
+        -> Tensor
+        Variable str Domain
+        -> Variable
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+        Variable str Domain
+        -> Variable
+        Variable str Domain
+        -> Variable
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+        Binary GetitemOp Variable Slice
+          _ file:///Users/fritzobermeyer/github/pyro-ppl/sandbox/2019-08-time-series/bart/forecast.py 54
+DEBUG
+GetitemOp(0)
+Variable
+│ 'gate_rate_t__BOUND_28'
+│ reals(3, 8)
+Slice
+│ 'time__BOUND_13'
+│ 0
+│ 2
+│ 2
+│ 3
+        -> Binary
+        AffineNormal Tensor Tensor Tensor Variable Binary
+        -> AffineNormal
+        Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal
+          Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal
+            eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+            eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+            Contraction NullOp AddOp frozenset Tensor Gaussian
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Tensor AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Gaussian AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          -> Contraction
+        -> Contraction
+      -> Contraction
+      Tensor Tensor tuple str
+      -> Tensor
+      Gaussian Tensor Tensor tuple
+      -> Gaussian
+      Subs Gaussian tuple
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+      -> Gaussian
+      Subs Gaussian tuple
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+      -> Gaussian
+      Binary AddOp Tensor Gaussian
+        binary_to_contract file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 263
+        Contraction NullOp AddOp frozenset Tensor Gaussian
+          eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+          normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+          normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+        -> Contraction
+      -> Contraction
+      Tensor Tensor tuple str
+      -> Tensor
+      Tensor Tensor tuple str
+      -> Tensor
+      Tensor Tensor tuple str
+      -> Tensor
+      Variable str Domain
+      -> Variable
+      Variable str Domain
+      -> Variable
+      AffineNormal Tensor Tensor Tensor Variable Variable
+      -> AffineNormal
+      Variable str Domain
+      -> Variable
+      eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+      Variable str Domain
+      -> Variable
+      Binary GetitemOp Variable Variable
+        _ file:///Users/fritzobermeyer/github/pyro-ppl/sandbox/2019-08-time-series/bart/forecast.py 54
+DEBUG
+GetitemOp(0)
+Variable
+│ 'gate_rate_t__BOUND_28'
+│ reals(3, 8)
+Variable
+│ 'time__BOUND_10'
+│ bint(3)
+      -> Binary
+      Subs AffineNormal tuple
+        _ file:///Users/fritzobermeyer/github/pyro-ppl/sandbox/2019-08-time-series/bart/forecast.py 49
+DEBUG
+AffineNormal
+│ Tensor
+│ │ tensor([[ 0.0266, -0.2460, -0.4721, -0.2...
+│ │ tuple
+│ │ 'real'
+│ Tensor
+│ │ tensor([[-0.0036, -0.2849,  0.0371,  0.1...
+│ │ tuple
+│ │ │ tuple
+│ │ │ │ 'time__BOUND_10'
+│ │ │ │ bint(3)
+│ │ 'real'
+│ Tensor
+│ │ tensor([[0.5975, 0.8641, 1.0236, 0.7148,...
+│ │ tuple
+│ │ │ tuple
+│ │ │ │ 'time__BOUND_10'
+│ │ │ │ bint(3)
+│ │ 'real'
+│ Variable
+│ │ 'state(time=1)__BOUND_14'
+│ │ reals(8,)
+│ Variable
+│ │ 'gate_rate__BOUND_6'
+│ │ reals(8,)
+(('gate_rate__BOUND_6', Binary(GetitemOp(0), gate_rate_t__BOUND_28, time__BOUND_10)),)
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+        Tensor Tensor tuple str
+        -> Tensor
+        Tensor Tensor tuple str
+        -> Tensor
+        Tensor Tensor tuple str
+        -> Tensor
+        Variable str Domain
+        -> Variable
+        Variable str Domain
+        -> Variable
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+        AffineNormal Tensor Tensor Tensor Variable Binary
+        -> AffineNormal
+      -> AffineNormal
+      Binary AddOp Contraction AffineNormal
+        binary_to_contract file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 263
+        Contraction NullOp AddOp frozenset Contraction AffineNormal
+          eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+          normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+          normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal
+            eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+            eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+            Contraction NullOp AddOp frozenset Tensor Gaussian
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Tensor AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Gaussian AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          -> Contraction
+        -> Contraction
+      -> Contraction
+      Variable str Domain
+      -> Variable
+      Slice str int int int int
+      -> Slice
+      Subs Contraction tuple
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+        Tensor Tensor tuple str
+        -> Tensor
+        Gaussian Tensor Tensor tuple
+        -> Gaussian
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/gaussian.py 344
+        Variable str Domain
+        -> Variable
+        Gaussian Tensor Tensor tuple
+        -> Gaussian
+        Subs Gaussian tuple
+          eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+        -> Gaussian
+        Tensor Tensor tuple str
+        -> Tensor
+        Tensor Tensor tuple str
+        -> Tensor
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+        Tensor Tensor tuple str
+        -> Tensor
+        Tensor Tensor tuple str
+        -> Tensor
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+        Tensor Tensor tuple str
+        -> Tensor
+        Variable str Domain
+        -> Variable
+        Variable str Domain
+        -> Variable
+        Variable str Domain
+        -> Variable
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+        Binary GetitemOp Variable Slice
+          _ file:///Users/fritzobermeyer/github/pyro-ppl/sandbox/2019-08-time-series/bart/forecast.py 54
+DEBUG
+GetitemOp(0)
+Variable
+│ 'gate_rate_t__BOUND_28'
+│ reals(3, 8)
+Slice
+│ 'time__BOUND_13'
+│ 1
+│ 2
+│ 2
+│ 3
+        -> Binary
+        AffineNormal Tensor Tensor Tensor Variable Binary
+        -> AffineNormal
+        Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal
+          Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal
+            eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+            eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+            Contraction NullOp AddOp frozenset Tensor Gaussian
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Tensor AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Gaussian AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          -> Contraction
+        -> Contraction
+      -> Contraction
+      Binary AddOp Contraction Contraction
+        binary_to_contract file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 263
+        Contraction NullOp AddOp frozenset Contraction Contraction
+          eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+          normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+          normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal Contraction
+            eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+            eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+            Contraction NullOp AddOp frozenset Tensor Gaussian
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Tensor AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Tensor Contraction
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              Contraction NullOp AddOp frozenset Tensor Tensor Gaussian AffineNormal
+                eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+                eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+                Contraction NullOp AddOp frozenset Tensor Tensor
+                  eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                  eager_binary_tensor_tensor file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 391
+                  Tensor Tensor tuple str
+                  -> Tensor
+                -> Tensor
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal
+                  eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+                  eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+                  Contraction NullOp AddOp frozenset Tensor Gaussian
+                    eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                    normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  -> Contraction
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  Contraction NullOp AddOp frozenset Tensor AffineNormal
+                    eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                    normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  -> Contraction
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  Contraction NullOp AddOp frozenset Gaussian AffineNormal
+                    eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                    normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  -> Contraction
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                -> Contraction
+              -> Contraction
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Tensor Tensor Gaussian AffineNormal
+              eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+              eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+              Contraction NullOp AddOp frozenset Tensor Tensor
+                eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                eager_binary_tensor_tensor file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 391
+                Tensor Tensor tuple str
+                -> Tensor
+              -> Tensor
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal
+                eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+                eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+                Contraction NullOp AddOp frozenset Tensor Gaussian
+                  eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                  normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                -> Contraction
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                Contraction NullOp AddOp frozenset Tensor AffineNormal
+                  eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                  normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                -> Contraction
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                Contraction NullOp AddOp frozenset Gaussian AffineNormal
+                  eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                  normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                -> Contraction
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              -> Contraction
+            -> Contraction
+            Contraction NullOp AddOp frozenset Contraction Gaussian AffineNormal
+              eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+              eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+              Contraction NullOp AddOp frozenset Contraction Gaussian
+                eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal Gaussian
+                  eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+                  eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+                  Contraction NullOp AddOp frozenset Tensor Gaussian
+                    eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                    normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  -> Contraction
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  Contraction NullOp AddOp frozenset Tensor AffineNormal
+                    eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                    normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  -> Contraction
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  Contraction NullOp AddOp frozenset Tensor Gaussian
+                    eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                    normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  -> Contraction
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  Contraction NullOp AddOp frozenset Gaussian AffineNormal
+                    eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                    normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  -> Contraction
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  Contraction NullOp AddOp frozenset Gaussian Gaussian
+                    eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                    eager_add_gaussian_gaussian file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/gaussian.py 550
+                    Gaussian Tensor Tensor tuple
+                    -> Gaussian
+                  -> Gaussian
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal
+                    eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+                    eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+                    Contraction NullOp AddOp frozenset Tensor Gaussian
+                      eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                      normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+                      normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                    -> Contraction
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                    Contraction NullOp AddOp frozenset Tensor AffineNormal
+                      eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                      normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                      normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                    -> Contraction
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                    Contraction NullOp AddOp frozenset Gaussian AffineNormal
+                      eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                      normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                      normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                    -> Contraction
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  -> Contraction
+                -> Contraction
+              -> Contraction
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal Gaussian
+                eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+                eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+                Contraction NullOp AddOp frozenset Tensor Gaussian
+                  eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                  normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                -> Contraction
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                Contraction NullOp AddOp frozenset Tensor AffineNormal
+                  eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                  normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                -> Contraction
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                Contraction NullOp AddOp frozenset Tensor Gaussian
+                  eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                  normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                -> Contraction
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                Contraction NullOp AddOp frozenset Gaussian AffineNormal
+                  eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                  normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                -> Contraction
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                Contraction NullOp AddOp frozenset Gaussian Gaussian
+                  eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                  eager_add_gaussian_gaussian file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/gaussian.py 550
+                  Gaussian Tensor Tensor tuple
+                  -> Gaussian
+                -> Gaussian
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal
+                  eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+                  eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+                  Contraction NullOp AddOp frozenset Tensor Gaussian
+                    eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                    normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  -> Contraction
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  Contraction NullOp AddOp frozenset Tensor AffineNormal
+                    eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                    normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  -> Contraction
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  Contraction NullOp AddOp frozenset Gaussian AffineNormal
+                    eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                    normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  -> Contraction
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                -> Contraction
+              -> Contraction
+              Contraction NullOp AddOp frozenset Contraction AffineNormal
+                eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal AffineNormal
+                  eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+                  eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+                  Contraction NullOp AddOp frozenset Tensor Gaussian
+                    eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                    normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  -> Contraction
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  Contraction NullOp AddOp frozenset Tensor AffineNormal
+                    eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                    normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  -> Contraction
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  Contraction NullOp AddOp frozenset Tensor AffineNormal
+                    eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                    normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  -> Contraction
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  Contraction NullOp AddOp frozenset Gaussian AffineNormal
+                    eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                    normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  -> Contraction
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  Contraction NullOp AddOp frozenset Gaussian AffineNormal
+                    eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                    normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  -> Contraction
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  Contraction NullOp AddOp frozenset AffineNormal AffineNormal
+                    eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                    normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                    normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  -> Contraction
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                  normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+                -> Contraction
+              -> Contraction
+            -> Contraction
+          -> Contraction
+        -> Contraction
+      -> Contraction
+      Reduce LogAddExpOp Contraction frozenset
+        eager_reduce file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 982
+        eager_reduce file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 502
+        reduce_funsor file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 268
+        Contraction LogAddExpOp NullOp frozenset Contraction
+          eager_contraction_to_reduce file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 156
+          eager_reduce file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 982
+          eager_reduce file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 502
+          normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+          normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          Contraction LogAddExpOp AddOp frozenset Tensor Gaussian AffineNormal AffineNormal
+            eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+            eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+            Contraction LogAddExpOp AddOp frozenset Tensor Gaussian
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              Contraction NullOp AddOp frozenset Tensor Gaussian
+                eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              -> Contraction
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Tensor Gaussian
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            Contraction LogAddExpOp AddOp frozenset Tensor AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              Contraction NullOp AddOp frozenset Tensor AffineNormal
+                eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              -> Contraction
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Tensor AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            Contraction LogAddExpOp AddOp frozenset Tensor AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              Contraction NullOp AddOp frozenset Tensor AffineNormal
+                eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              -> Contraction
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Tensor AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            Contraction LogAddExpOp AddOp frozenset Gaussian AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              Contraction NullOp AddOp frozenset Gaussian AffineNormal
+                eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              -> Contraction
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Gaussian AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            Contraction LogAddExpOp AddOp frozenset Gaussian AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction LogAddExpOp AddOp frozenset AffineNormal AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              Contraction NullOp AddOp frozenset AffineNormal AffineNormal
+                eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              -> Contraction
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset AffineNormal AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          -> Contraction
+        -> Contraction
+      -> Contraction
+      Tensor Tensor tuple str
+      -> Tensor
+      Gaussian Tensor Tensor tuple
+      -> Gaussian
+      Subs Gaussian tuple
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+      -> Gaussian
+      Subs Gaussian tuple
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+      -> Gaussian
+      Binary AddOp Tensor Gaussian
+        binary_to_contract file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 263
+        Contraction NullOp AddOp frozenset Tensor Gaussian
+          eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+          normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+          normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+        -> Contraction
+      -> Contraction
+      Tensor Tensor tuple str
+      -> Tensor
+      Tensor Tensor tuple str
+      -> Tensor
+      Tensor Tensor tuple str
+      -> Tensor
+      Variable str Domain
+      -> Variable
+      Variable str Domain
+      -> Variable
+      AffineNormal Tensor Tensor Tensor Variable Variable
+      -> AffineNormal
+      Variable str Domain
+      -> Variable
+      eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+      Variable str Domain
+      -> Variable
+      Binary GetitemOp Variable Variable
+        _ file:///Users/fritzobermeyer/github/pyro-ppl/sandbox/2019-08-time-series/bart/forecast.py 54
+DEBUG
+GetitemOp(0)
+Variable
+│ 'gate_rate_t__BOUND_28'
+│ reals(3, 8)
+Variable
+│ 'time__BOUND_12'
+│ bint(3)
+      -> Binary
+      Subs AffineNormal tuple
+        _ file:///Users/fritzobermeyer/github/pyro-ppl/sandbox/2019-08-time-series/bart/forecast.py 49
+DEBUG
+AffineNormal
+│ Tensor
+│ │ tensor([[ 0.0266, -0.2460, -0.4721, -0.2...
+│ │ tuple
+│ │ 'real'
+│ Tensor
+│ │ tensor([[-0.0036, -0.2849,  0.0371,  0.1...
+│ │ tuple
+│ │ │ tuple
+│ │ │ │ 'time__BOUND_12'
+│ │ │ │ bint(3)
+│ │ 'real'
+│ Tensor
+│ │ tensor([[0.5975, 0.8641, 1.0236, 0.7148,...
+│ │ tuple
+│ │ │ tuple
+│ │ │ │ 'time__BOUND_12'
+│ │ │ │ bint(3)
+│ │ 'real'
+│ Variable
+│ │ 'state(time=1)__BOUND_14'
+│ │ reals(8,)
+│ Variable
+│ │ 'gate_rate__BOUND_6'
+│ │ reals(8,)
+(('gate_rate__BOUND_6', Binary(GetitemOp(0), gate_rate_t__BOUND_28, time__BOUND_12)),)
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+        Tensor Tensor tuple str
+        -> Tensor
+        Tensor Tensor tuple str
+        -> Tensor
+        Tensor Tensor tuple str
+        -> Tensor
+        Variable str Domain
+        -> Variable
+        Variable str Domain
+        -> Variable
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+        AffineNormal Tensor Tensor Tensor Variable Binary
+        -> AffineNormal
+      -> AffineNormal
+      Binary AddOp Contraction AffineNormal
+        binary_to_contract file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 263
+        Contraction NullOp AddOp frozenset Contraction AffineNormal
+          eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+          normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+          normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal
+            eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+            eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+            Contraction NullOp AddOp frozenset Tensor Gaussian
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Tensor AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Gaussian AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          -> Contraction
+        -> Contraction
+      -> Contraction
+      Slice str int int int int
+      -> Slice
+      Subs Contraction tuple
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+        Tensor Tensor tuple str
+        -> Tensor
+        Gaussian Tensor Tensor tuple
+        -> Gaussian
+        Tensor Tensor tuple str
+        -> Tensor
+        Tensor Tensor tuple str
+        -> Tensor
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+        Tensor Tensor tuple str
+        -> Tensor
+        Tensor Tensor tuple str
+        -> Tensor
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/torch.py 175
+        Tensor Tensor tuple str
+        -> Tensor
+        Variable str Domain
+        -> Variable
+        Variable str Domain
+        -> Variable
+        Variable str Domain
+        -> Variable
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+        Binary GetitemOp Variable Slice
+          _ file:///Users/fritzobermeyer/github/pyro-ppl/sandbox/2019-08-time-series/bart/forecast.py 54
+DEBUG
+GetitemOp(0)
+Variable
+│ 'gate_rate_t__BOUND_28'
+│ reals(3, 8)
+Slice
+│ 'time__BOUND_13'
+│ 2
+│ 3
+│ 1
+│ 3
+        -> Binary
+        AffineNormal Tensor Tensor Tensor Variable Binary
+        -> AffineNormal
+        Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal
+          Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal
+            eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+            eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+            Contraction NullOp AddOp frozenset Tensor Gaussian
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Tensor AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Gaussian AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          -> Contraction
+        -> Contraction
+      -> Contraction
+      Cat str tuple str
+        eager_cat file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1328
+      -> Cat
+      Variable str Domain
+      -> Variable
+      Slice str int int int int
+      -> Slice
+      Subs Cat tuple
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+        Tensor Tensor tuple str
+        -> Tensor
+        Gaussian Tensor Tensor tuple
+        -> Gaussian
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/gaussian.py 344
+        Variable str Domain
+        -> Variable
+        Gaussian Tensor Tensor tuple
+        -> Gaussian
+        Subs Gaussian tuple
+          eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+        -> Gaussian
+        Tensor Tensor tuple str
+        -> Tensor
+        Tensor Tensor tuple str
+        -> Tensor
+        Tensor Tensor tuple str
+        -> Tensor
+        Variable str Domain
+        -> Variable
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+        Variable str Domain
+        -> Variable
+        Slice str int int int int
+        -> Slice
+        Binary GetitemOp Variable Slice
+          _ file:///Users/fritzobermeyer/github/pyro-ppl/sandbox/2019-08-time-series/bart/forecast.py 54
+DEBUG
+GetitemOp(0)
+Variable
+│ 'gate_rate_t__BOUND_28'
+│ reals(3, 8)
+Slice
+│ 'time__BOUND_13'
+│ 1
+│ 2
+│ 2
+│ 3
+        -> Binary
+        AffineNormal Tensor Tensor Tensor Variable Binary
+        -> AffineNormal
+        Tensor Tensor tuple str
+        -> Tensor
+        Tensor Tensor tuple str
+        -> Tensor
+        Tensor Tensor tuple str
+        -> Tensor
+        Variable str Domain
+        -> Variable
+        Variable str Domain
+        -> Variable
+        Slice str int int int int
+        -> Slice
+        Binary GetitemOp Variable Slice
+          _ file:///Users/fritzobermeyer/github/pyro-ppl/sandbox/2019-08-time-series/bart/forecast.py 54
+DEBUG
+GetitemOp(0)
+Variable
+│ 'gate_rate_t__BOUND_28'
+│ reals(3, 8)
+Slice
+│ 'time__BOUND_13'
+│ 0
+│ 2
+│ 2
+│ 3
+        -> Binary
+        AffineNormal Tensor Tensor Tensor Variable Binary
+        -> AffineNormal
+        Contraction LogAddExpOp AddOp frozenset Tensor Gaussian AffineNormal AffineNormal
+          Contraction LogAddExpOp AddOp frozenset Tensor Gaussian AffineNormal AffineNormal
+            eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+            eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+            Contraction LogAddExpOp AddOp frozenset Tensor Gaussian
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              Contraction NullOp AddOp frozenset Tensor Gaussian
+                eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              -> Contraction
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Tensor Gaussian
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            Contraction LogAddExpOp AddOp frozenset Tensor AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              Contraction NullOp AddOp frozenset Tensor AffineNormal
+                eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              -> Contraction
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Tensor AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            Contraction LogAddExpOp AddOp frozenset Tensor AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              Contraction NullOp AddOp frozenset Tensor AffineNormal
+                eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              -> Contraction
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Tensor AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            Contraction LogAddExpOp AddOp frozenset Gaussian AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              Contraction NullOp AddOp frozenset Gaussian AffineNormal
+                eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              -> Contraction
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Gaussian AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            Contraction LogAddExpOp AddOp frozenset Gaussian AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction LogAddExpOp AddOp frozenset AffineNormal AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              Contraction NullOp AddOp frozenset AffineNormal AffineNormal
+                eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+                normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+                normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+              -> Contraction
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset AffineNormal AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          -> Contraction
+        -> Contraction
+        Tensor Tensor tuple str
+        -> Tensor
+        Gaussian Tensor Tensor tuple
+        -> Gaussian
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/gaussian.py 344
+        Variable str Domain
+        -> Variable
+        Gaussian Tensor Tensor tuple
+        -> Gaussian
+        Subs Gaussian tuple
+          eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 877
+        -> Gaussian
+        Tensor Tensor tuple str
+        -> Tensor
+        Tensor Tensor tuple str
+        -> Tensor
+        Tensor Tensor tuple str
+        -> Tensor
+        Variable str Domain
+        -> Variable
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 805
+        Variable str Domain
+        -> Variable
+        Slice str int int int int
+        -> Slice
+        Binary GetitemOp Variable Slice
+          _ file:///Users/fritzobermeyer/github/pyro-ppl/sandbox/2019-08-time-series/bart/forecast.py 54
+DEBUG
+GetitemOp(0)
+Variable
+│ 'gate_rate_t__BOUND_28'
+│ reals(3, 8)
+Slice
+│ 'time__BOUND_13'
+│ 2
+│ 3
+│ 1
+│ 3
+        -> Binary
+        AffineNormal Tensor Tensor Tensor Variable Binary
+        -> AffineNormal
+        Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal
+          Contraction NullOp AddOp frozenset Tensor Gaussian AffineNormal
+            eager_contraction_generic_to_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 112
+            eager_contraction_generic_recursive file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 117
+            Contraction NullOp AddOp frozenset Tensor Gaussian
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_commutative_canonical_order file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 184
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Tensor AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            Contraction NullOp AddOp frozenset Gaussian AffineNormal
+              eager_contraction_to_binary file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 161
+              normalize_contraction_generic_args file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 209
+              normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            -> Contraction
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+            normalize_contraction_generic_tuple file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/cnf.py 220
+          -> Contraction
+        -> Contraction
+        Cat str tuple str
+          eager_cat file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1328
+        -> Cat
+        eager_subs file:///Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py 1309
+TODO implement Cat.eager_subs for <class 'funsor.terms.Slice'>
+> /Users/fritzobermeyer/github/pyro-ppl/funsor/funsor/terms.py(1325)eager_subs()
+-> .format(type(value)))
+(Pdb) 
