@@ -1,2 +1,4 @@
 data/
 *.pkl
+*.txt
+*.prof

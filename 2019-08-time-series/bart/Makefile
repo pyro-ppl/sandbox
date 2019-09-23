@@ -10,18 +10,30 @@ test: lint FORCE
 	  --training-filename=/dev/null
 	@echo PASS
 
-test2: lint FORCE
-	python forecast.py -n 1 -v \
-	  --tiny=2 \
+profile: lint FORCE
+	python -m cProfile -o forecast.prof forecast.py -n 1 \
 	  --truncate=128 \
+	  --param-store-filename=/dev/null \
+	  --training-filename=/dev/null
+	snakeviz forecast.prof &
+
+test2: lint FORCE
+	python forecast.py -n 1 -v --debug \
+	  --tiny=2 \
+	  --truncate=2 \
+	  --state-dim=2 \
+	  --guide-rank=2 \
 	  --param-store-filename=/dev/null \
 	  --training-filename=/dev/null
 	@echo PASS
 
 test3: lint FORCE
-	python forecast.py --analytic-kl -n 1 -v \
+	python forecast.py -n 1 -v --debug \
+	  --analytic-kl \
 	  --tiny=2 \
-	  --truncate=3 \
+	  --truncate=2 \
+	  --state-dim=2 \
+	  --guide-rank=2 \
 	  --param-store-filename=/dev/null \
 	  --training-filename=/dev/null
 	@echo PASS

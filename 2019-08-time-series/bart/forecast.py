@@ -40,10 +40,8 @@ def make_time_features(args, begin_time, end_time):
 
 @dispatched_interpretation
 def monte_carlo_debug(cls, *args):
-    result = monte_carlo_debug.dispatch(cls, *args)
-    if result is None:
-        result = monte_carlo(cls, *args)
-    return result
+    monte_carlo_debug.dispatch(cls, *args)
+    return monte_carlo(cls, *args)
 
 
 @monte_carlo_debug.register(Subs, AffineNormal, tuple)
@@ -200,13 +198,13 @@ class Guide(nn.Module):
 
 def elbo_loss(model, guide, args, features, trip_counts):
     q = guide(features, trip_counts)
-    # print(f"DEBUG q =\n{q.pretty()}")
+    if args.debug:
+        print(f"q = {q.quote()}")
     with interpretation(reflect):
         p_prior, p_likelihood = model(features, trip_counts)
-        # print(f"DEBUG p_prior =\n{p_prior.pretty()}")
-        # print(f"DEBUG p_likelihood =\n{p_likelihood.pretty()}")
-        p = p_prior + p_likelihood
-        # print(f"DEBUG p =\n{p.pretty()}")
+        if args.debug:
+            print(f"p_prior = {p_prior.quote()}")
+            print(f"p_likelihood = {p_likelihood.quote()}")
 
     if args.analytic_kl:
         # We can compute the KL part exactly.
@@ -219,6 +217,7 @@ def elbo_loss(model, guide, args, features, trip_counts):
         elbo = exact_part + approx_part
     else:
         with interpretation(reflect):
+            p = p_prior + p_likelihood
             pq = p - q
         # Monte Carlo approximate everything.
         with interpretation(monte_carlo):
@@ -328,6 +327,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", default="")
     parser.add_argument("--cuda", dest="device", action="store_const", const="cuda")
     parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
     if not args.device:
         args.device = "cuda" if torch.cuda.is_available() else "cpu"
