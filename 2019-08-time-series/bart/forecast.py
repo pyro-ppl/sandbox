@@ -6,7 +6,7 @@ import pyro.distributions as dist
 import pyro.poutine as poutine
 import torch
 import torch.nn as nn
-from pyro.infer import SVI, Trace_ELBO
+from pyro.infer import SVI, Trace_ELBO, TraceMeanField_ELBO
 from pyro.optim import ClippedAdam
 from torch.distributions import constraints
 
@@ -207,7 +207,7 @@ def train(args, dataset):
     data_size = len(training_counts)
     model = Model(args, features, training_counts).to(device=args.device)
     guide = Guide(args, features, training_counts).to(device=args.device)
-    elbo = Trace_ELBO()
+    elbo = (TraceMeanField_ELBO if args.analytic_kl else Trace_ELBO)()
     optim = ClippedAdam(optim_config)
     svi = SVI(model, guide, optim, elbo)
     losses = []

@@ -39,6 +39,7 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--num-steps", default=1001, type=int)
     parser.add_argument("-b", "--batch-size", default=24 * 7 * 2, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.05, type=float)
+    parser.add_argument("--analytic-kl", action="store_true")
     parser.add_argument("--seed", default=123456789, type=int)
     parser.add_argument("--device", default="")
     parser.add_argument("--cuda", dest="device", action="store_const", const="cuda")
