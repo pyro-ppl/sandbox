@@ -1,4 +1,3 @@
-import argparse
 import logging
 import math
 
@@ -17,7 +16,6 @@ from funsor.montecarlo import monte_carlo
 from funsor.pyro.convert import dist_to_funsor, matrix_and_mvn_to_funsor, tensor_to_funsor
 from funsor.sum_product import MarkovProduct
 from funsor.terms import normalize
-from preprocess import load_hourly_od
 
 
 def vm(vector, matrix):
@@ -276,52 +274,3 @@ def train(args, dataset):
                 logging.debug("trans scale min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
                               .format(trans_scale.min(), trans_scale.mean(), trans_scale.max()))
                 logging.debug("trans mat eig:\n{}".format(eigs))
-
-
-def main(args):
-    assert pyro.__version__ >= "0.4.1"
-    pyro.enable_validation(__debug__)
-    pyro.set_rng_seed(args.seed)
-    dataset = load_hourly_od(args)
-    if args.tiny:
-        dataset["stations"] = dataset["stations"][:args.tiny]
-        dataset["counts"] = dataset["counts"][:, :args.tiny, :args.tiny]
-    train(args, dataset)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="BART origin-destination forecast")
-    parser.add_argument("--param-store-filename", default="pyro_param_store.pkl")
-    parser.add_argument("--training-filename", default="training.pkl")
-    parser.add_argument("--truncate", default=0, type=int,
-                        help="optionally truncate to a subset of hours")
-    parser.add_argument("--tiny", default=0, type=int,
-                        help="optionally truncate to a subset of stations")
-    parser.add_argument("--state-dim", default=8, type=int,
-                        help="size of HMM state space in model")
-    parser.add_argument("--model-nn-dim", default=64, type=int,
-                        help="size of hidden layer in model net")
-    parser.add_argument("--guide-rank", default=8, type=int,
-                        help="size of hidden layer in guide net")
-    parser.add_argument("--analytic-kl", action="store_true")
-    parser.add_argument("-n", "--num-steps", default=1001, type=int)
-    parser.add_argument("-b", "--batch-size", default=24 * 7 * 2, type=int)
-    parser.add_argument("-lr", "--learning-rate", default=0.05, type=float)
-    parser.add_argument("--seed", default=123456789, type=int)
-    parser.add_argument("--device", default="")
-    parser.add_argument("--cuda", dest="device", action="store_const", const="cuda")
-    parser.add_argument("-v", "--verbose", action="store_true")
-    parser.add_argument("--debug", action="store_true")
-    args = parser.parse_args()
-    if not args.device:
-        args.device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    logging.basicConfig(format='%(relativeCreated) 9d %(message)s',
-                        level=logging.DEBUG if args.verbose else logging.INFO)
-
-    try:
-        main(args)
-    except (Exception, KeyboardInterrupt) as e:
-        print(e)
-        import pdb
-        pdb.post_mortem(e.__traceback__)
