@@ -12,12 +12,11 @@ import funsor
 import funsor.distributions as fdist
 import funsor.ops as ops
 from funsor.domains import reals
-from funsor.interpreter import dispatched_interpretation, interpretation
+from funsor.interpreter import interpretation
 from funsor.montecarlo import monte_carlo
-from funsor.pyro.convert import (
-        AffineNormal, dist_to_funsor, matrix_and_mvn_to_funsor, tensor_to_funsor)
+from funsor.pyro.convert import dist_to_funsor, matrix_and_mvn_to_funsor, tensor_to_funsor
 from funsor.sum_product import MarkovProduct
-from funsor.terms import Subs, normalize, Binary, Funsor
+from funsor.terms import normalize
 from preprocess import load_hourly_od
 
 
@@ -38,22 +37,6 @@ def make_time_features(args, begin_time, end_time):
                       torch.sin(angles)], dim=-1)
 
 
-@dispatched_interpretation
-def monte_carlo_debug(cls, *args):
-    monte_carlo_debug.dispatch(cls, *args)
-    return monte_carlo(cls, *args)
-
-
-@monte_carlo_debug.register(Subs, AffineNormal, tuple)
-def _(term, subs):
-    print(f"DEBUG\n{term.pretty()}\n{subs}")
-
-
-@monte_carlo_debug.register(Binary, ops.GetitemOp, Funsor, Funsor)
-def _(op, lhs, rhs):
-    print(f"DEBUG\n{op}\n{lhs.pretty()}\n{rhs.pretty()}")
-
-
 class Model(nn.Module):
     """
     The main generative model.
@@ -71,6 +54,17 @@ class Model(nn.Module):
             nn.Linear(args.model_nn_dim, 2 * gate_rate_dim))
         self.nn[0].bias.data.fill_(0)
         self.nn[2].bias.data.fill_(0)
+        n = self.num_stations
+
+        @funsor.torch.function(reals(2 * n * n), (reals(n, n, 2), reals(n, n)))
+        def unpack_gate_rate(gate_rate):
+            batch_shape = gate_rate.shape[:-1]
+            gate, rate = gate_rate.reshape(batch_shape + (2, n, n)).unbind(-3)
+            rate = bounded_exp(rate, bound=1e4)
+            gate = torch.stack((torch.zeros_like(gate), gate), dim=-1)
+            return gate, rate
+
+        self._unpack_gate_rate = unpack_gate_rate
 
     def _dynamics(self, features):
         """
@@ -116,17 +110,6 @@ class Model(nn.Module):
         gate_rate = funsor.Variable(
             "gate_rate_t", reals(observed_hours, 2 * num_origins * num_destins))["time"]
 
-        @funsor.torch.function(reals(2 * num_origins * num_destins),
-                               (reals(num_origins, num_destins, 2),
-                                reals(num_origins, num_destins)))
-        def unpack_gate_rate(gate_rate):
-            batch_shape = gate_rate.shape[:-1]
-            event_shape = (2, num_origins, num_destins)
-            gate, rate = gate_rate.reshape(batch_shape + event_shape).unbind(-3)
-            rate = bounded_exp(rate, bound=1e4)
-            gate = torch.stack((torch.zeros_like(gate), gate), dim=-1)
-            return gate, rate
-
         # Create a Gaussian latent dynamical system.
         init_dist, trans_matrix, trans_dist, obs_matrix, obs_dist = \
             self._dynamics(features[:observed_hours])
@@ -144,7 +127,7 @@ class Model(nn.Module):
         prior = prior.reduce(ops.logaddexp, {"state", "state(time=1)"})
 
         # Compute zero-inflated Poisson likelihood.
-        gate, rate = unpack_gate_rate(gate_rate)
+        gate, rate = self._unpack_gate_rate(gate_rate)
         likelihood = fdist.Categorical(gate["origin", "destin"], value="gated")
         trip_counts = tensor_to_funsor(trip_counts, ("time", "origin", "destin"))
         likelihood += funsor.Stack("gated", (
@@ -180,6 +163,7 @@ class Guide(nn.Module):
         self.lowrank[2].bias.data.fill_(0)
 
     def forward(self, features, trip_counts):
+        pyro.module("guide", self)
         assert features.dim() == 2
         assert trip_counts.dim() == 3
         observed_hours = len(trip_counts)
