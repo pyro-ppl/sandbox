@@ -1,10 +1,13 @@
 import logging
 import math
 
+import pyro
+import pyro.distributions as dist
+import pyro.poutine as poutine
 import torch
 import torch.nn as nn
-from pyro.generic import distributions as dist
-from pyro.generic import infer, optim, pyro
+from pyro.infer import SVI, Trace_ELBO, TraceMeanField_ELBO
+from pyro.optim import ClippedAdam
 from torch.distributions import constraints
 
 import funsor
@@ -52,17 +55,21 @@ class Model(nn.Module):
             nn.Linear(args.model_nn_dim, 2 * gate_rate_dim))
         self.nn[0].bias.data.fill_(0)
         self.nn[2].bias.data.fill_(0)
+
+    def _unpack_gate_rate(self, gate_rate, event_dim):
+        """
+        Unpack the ``gate_rate`` pair output from the neural net.
+        This can be seen as a final layer of the neural net.
+        """
         n = self.num_stations
-
-        @funsor.torch.function(reals(2 * n * n), (reals(n, n, 2), reals(n, n)))
-        def unpack_gate_rate(gate_rate):
-            batch_shape = gate_rate.shape[:-1]
-            gate, rate = gate_rate.reshape(batch_shape + (2, n, n)).unbind(-3)
-            rate = bounded_exp(rate, bound=1e4)
-            gate = torch.stack((torch.zeros_like(gate), gate), dim=-1)
-            return gate, rate
-
-        self._unpack_gate_rate = unpack_gate_rate
+        sample_shape = gate_rate.shape[:-3 - event_dim]
+        time_shape = gate_rate.shape[-event_dim:-1]
+        if not time_shape:
+            time_shape = (1,)
+        gate, rate = gate_rate.reshape(sample_shape + time_shape + (2, n, n)).unbind(-3)
+        gate = gate.sigmoid()
+        rate = bounded_exp(rate, bound=1e4)
+        return gate, rate
 
     def _dynamics(self, features):
         """
@@ -96,17 +103,75 @@ class Model(nn.Module):
         return init_dist, trans_matrix, trans_dist, obs_matrix, obs_dist
 
     def forward(self, features, trip_counts):
-        """
-        Compute a non-normalized funsor distribution over gate_rate.
-        """
         pyro.module("model", self)
+        if self.args.funsor:
+            return self._forward_funsor(features, trip_counts)
+        else:
+            return self._forward_pyro(features, trip_counts)
+
+    def _forward_pyro(self, features, trip_counts):
         total_hours = len(features)
         observed_hours, num_origins, num_destins = trip_counts.shape
         assert observed_hours <= total_hours
         assert num_origins == self.num_stations
         assert num_destins == self.num_stations
-        gate_rate = funsor.Variable(
-            "gate_rate_t", reals(observed_hours, 2 * num_origins * num_destins))["time"]
+        time_plate = pyro.plate("time", observed_hours, dim=-3)
+        origins_plate = pyro.plate("origins", num_origins, dim=-2)
+        destins_plate = pyro.plate("destins", num_destins, dim=-1)
+
+        # The first half of the model performs exact inference over
+        # the observed portion of the time series.
+        hmm = dist.GaussianHMM(*self._dynamics(features[:observed_hours]))
+        gate_rate = pyro.sample("gate_rate", hmm)
+        gate, rate = self._unpack_gate_rate(gate_rate, event_dim=2)
+        with time_plate, origins_plate, destins_plate:
+            pyro.sample("trip_count", dist.ZeroInflatedPoisson(gate, rate),
+                        obs=trip_counts)
+
+        # The second half of the model forecasts forward.
+        forecast = []
+        forecast_hours = total_hours - observed_hours
+        if forecast_hours > 0:
+            _, trans_matrix, trans_dist, obs_matrix, obs_dist = \
+                self._dynamics(features[observed_hours:])
+        state = None
+        for t in range(forecast_hours):
+            if state is None:  # on first step
+                state_dist = hmm.filter(gate_rate)
+            else:
+                loc = vm(state, trans_matrix) + trans_dist.loc
+                scale_tril = trans_dist.scale_tril
+                state_dist = dist.MultivariateNormal(loc, scale_tril=scale_tril)
+            state = pyro.sample("state_{}".format(t), state_dist)
+
+            loc = vm(state, obs_matrix) + obs_dist.base_dist.loc[..., t, :]
+            scale = obs_dist.base_dist.scale[..., t, :]
+            gate_rate = pyro.sample("gate_rate_{}".format(t),
+                                    dist.Normal(loc, scale).to_event(1))
+            gate, rate = self._unpack_gate_rate(gate_rate, event_dim=1)
+
+            with origins_plate, destins_plate:
+                forecast.append(pyro.sample("trip_count_{}".format(t),
+                                            dist.ZeroInflatedPoisson(gate, rate)))
+        return forecast
+
+    def _forward_funsor(self, features, trip_counts):
+        total_hours = len(features)
+        observed_hours, num_origins, num_destins = trip_counts.shape
+        assert observed_hours == total_hours
+        assert num_origins == self.num_stations
+        assert num_destins == self.num_stations
+        n = self.num_stations
+        gate_rate = funsor.Variable("gate_rate_t", reals(observed_hours, 2 * n * n))["time"]
+
+        @funsor.torch.function(reals(2 * n * n), (reals(n, n, 2), reals(n, n)))
+        def unpack_gate_rate(gate_rate):
+            batch_shape = gate_rate.shape[:-1]
+            gate, rate = gate_rate.reshape(batch_shape + (2, n, n)).unbind(-3)
+            gate = gate.sigmoid()
+            rate = bounded_exp(rate, bound=1e4)
+            gate = torch.stack((1 - gate, gate), dim=-1)
+            return gate, rate
 
         # Create a Gaussian latent dynamical system.
         init_dist, trans_matrix, trans_dist, obs_matrix, obs_dist = \
@@ -125,7 +190,7 @@ class Model(nn.Module):
         prior = prior.reduce(ops.logaddexp, {"state", "state(time=1)"})
 
         # Compute zero-inflated Poisson likelihood.
-        gate, rate = self._unpack_gate_rate(gate_rate)
+        gate, rate = unpack_gate_rate(gate_rate)
         likelihood = fdist.Categorical(gate["origin", "destin"], value="gated")
         trip_counts = tensor_to_funsor(trip_counts, ("time", "origin", "destin"))
         likelihood += funsor.Stack("gated", (
@@ -146,6 +211,7 @@ class Guide(nn.Module):
     """
     def __init__(self, args, features, trip_counts):
         super().__init__()
+        self.args = args
         feature_dim = features.size(-1)
         num_stations = trip_counts.size(-1)
 
@@ -170,45 +236,54 @@ class Guide(nn.Module):
                      self.lowrank(torch.cat([features[:observed_hours], log_counts], dim=-1)))
         loc, scale = loc_scale.reshape(observed_hours, 2, -1).unbind(1)
         scale = bounded_exp(scale, bound=10.)
-        diag_normal = dist.Normal(loc, scale).to_event(1)
-        log_prob = dist_to_funsor(diag_normal, ("time",))(value="gate_rate")
-        log_prob = funsor.Independent(log_prob, "gate_rate_t", "time", "gate_rate")
+        if self.args.funsor:
+            return self._forward_funsor(loc, scale)
+        else:
+            return self._forward_pyro(loc, scale)
 
-        assert set(log_prob.inputs) == {"gate_rate_t"}, log_prob.inputs
-        return log_prob
+    def _forward_pyro(self, loc, scale):
+        pyro.sample("gate_rate", dist.Normal(loc, scale).to_event(2))
+
+    def _forward_funsor(self, loc, scale):
+        diag_normal = dist.Normal(loc, scale).to_event(2)
+        return dist_to_funsor(diag_normal)(value="gate_rate_t")
 
 
-def elbo_loss(model, guide, args, features, trip_counts):
-    q = guide(features, trip_counts)
-    if args.debug:
-        print(f"q = {q.quote()}")
-    with interpretation(normalize):
-        p_prior, p_likelihood = model(features, trip_counts)
-        if args.debug:
-            print(f"p_prior = {p_prior.quote()}")
-            print(f"p_likelihood = {p_likelihood.quote()}")
+class Funsor_ELBO:
+    def __init__(self, args):
+        self.args = args
 
-    if args.analytic_kl:
-        # We can compute the KL part exactly.
-        exact_part = funsor.Integrate(q, p_prior - q, frozenset(["gate_rate_t"]))
-
-        # But we need to Monte Carlo approximate to compute likelihood.
-        with interpretation(monte_carlo):
-            approx_part = funsor.Integrate(q, p_likelihood, frozenset(["gate_rate_t"]))
-
-        elbo = exact_part + approx_part
-    else:
+    def __call__(self, model, guide, features, trip_counts):
+        q = guide(features, trip_counts)
+        if self.args.debug:
+            print(f"q = {q.quote()}")
         with interpretation(normalize):
-            p = p_prior + p_likelihood
-            pq = p - q
-        # Monte Carlo approximate everything.
-        with interpretation(monte_carlo):
-            elbo = funsor.Integrate(q, pq, frozenset(["gate_rate_t"]))
+            p_prior, p_likelihood = model(features, trip_counts)
+            if self.args.debug:
+                print(f"p_prior = {p_prior.quote()}")
+                print(f"p_likelihood = {p_likelihood.quote()}")
 
-    loss = -elbo
-    assert not loss.inputs, loss.inputs
-    assert isinstance(loss, funsor.Tensor), loss.pretty()
-    return loss.data
+        if self.args.analytic_kl:
+            # We can compute the KL part exactly.
+            exact_part = funsor.Integrate(q, p_prior - q, frozenset(["gate_rate_t"]))
+
+            # But we need to Monte Carlo approximate to compute likelihood.
+            with interpretation(monte_carlo):
+                approx_part = funsor.Integrate(q, p_likelihood, frozenset(["gate_rate_t"]))
+
+            elbo = exact_part + approx_part
+        else:
+            with interpretation(normalize):
+                p = p_prior + p_likelihood
+                pq = p - q
+            # Monte Carlo approximate everything.
+            with interpretation(monte_carlo):
+                elbo = funsor.Integrate(q, pq, frozenset(["gate_rate_t"]))
+
+        loss = -elbo
+        assert not loss.inputs, loss.inputs
+        assert isinstance(loss, funsor.Tensor), loss.pretty()
+        return loss.data
 
 
 def train(args, dataset):
@@ -244,15 +319,22 @@ def train(args, dataset):
     data_size = len(training_counts)
     model = Model(args, features, training_counts).to(device=args.device)
     guide = Guide(args, features, training_counts).to(device=args.device)
-    optimizer = optim.ClippedAdam(optim_config)
-    svi = infer.SVI(model, guide, optimizer, elbo_loss)
+    optimizer = ClippedAdam(optim_config)
+    if args.funsor:
+        elbo = Funsor_ELBO(args)
+    elif args.analytic_kl:
+        elbo = TraceMeanField_ELBO()
+    else:
+        elbo = Trace_ELBO()
+    svi = SVI(model, guide, optimizer, elbo)
     losses = []
+    forecaster = None
     for step in range(args.num_steps):
         begin_time = torch.randint(max(1, data_size - args.batch_size), ()).item()
         end_time = min(data_size, begin_time + args.batch_size)
         feature_batch = features[begin_time: end_time].to(device=args.device)
         counts_batch = counts[begin_time: end_time].to(device=args.device)
-        loss = svi.step(args, feature_batch, counts_batch) / counts_batch.numel()
+        loss = svi.step(feature_batch, counts_batch) / counts_batch.numel()
         assert math.isfinite(loss), loss
         losses.append(loss)
         logging.debug("step {} loss = {:0.4g}".format(step, loss))
@@ -262,6 +344,8 @@ def train(args, dataset):
             pyro.get_param_store().save(args.param_store_filename)
             metadata = {"args": args, "losses": losses, "control": control_features}
             torch.save(metadata, args.training_filename)
+            forecaster = Forecaster(args, dataset, features, model, guide)
+            torch.save(forecaster, args.forecaster_filename)
 
             if logging.Logger(None).isEnabledFor(logging.DEBUG):
                 init_scale = pyro.param("init_scale").data
@@ -274,3 +358,47 @@ def train(args, dataset):
                 logging.debug("trans scale min/mean/max: {:0.3g} {:0.3g} {:0.3g}"
                               .format(trans_scale.min(), trans_scale.mean(), trans_scale.max()))
                 logging.debug("trans mat eig:\n{}".format(eigs))
+
+    return forecaster
+
+
+class Forecaster:
+    """
+    A single object containing all information needed to forecast.
+    This can be pickled and unpickled for later use.
+    """
+    def __init__(self, args, dataset, features, model, guide):
+        assert len(features) == len(dataset["counts"])
+        self.args = args
+        self.dataset = dataset
+        self.counts = dataset["counts"]
+        self.features = features
+        self.model = model
+        self.guide = guide
+
+    @torch.no_grad()
+    def __call__(self, window_begin, window_end, forecast_hours, num_samples=None):
+        """
+        Given data in ``[window_begin, window_end)``, generate one or multiple
+        samples predictions in ``[window_end, window_end + forecast_hours)``.
+        """
+        self.args.funsor = False  # sets behavior of model and guide
+        assert 0 <= window_begin < window_end < window_end + forecast_hours <= len(self.counts)
+        features = self.features[window_begin: window_end + forecast_hours] \
+                       .to(device=self.args.device)
+        counts = self.counts[window_begin: window_end].to(device=self.args.device)
+
+        # To draw multiple samples efficiently, we parallelize using pyro.plate.
+        model = self.model
+        guide = self.guide
+        if num_samples is not None:
+            vectorize = pyro.plate("samples", num_samples, dim=-4)
+            model = vectorize(model)
+            guide = vectorize(guide)
+
+        with poutine.trace() as tr:
+            guide(features, counts)
+        with poutine.replay(trace=tr.trace):
+            forecast = model(features, counts)
+        assert len(forecast) == forecast_hours
+        return torch.cat(forecast, dim=-3).cpu()

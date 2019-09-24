@@ -15,10 +15,17 @@ test: lint FORCE
 	  --param-store-filename=/dev/null \
 	  --forecaster=/dev/null \
 	  --training-filename=/dev/null
+	python main.py -n 2 -v \
+	  --funsor \
+	  --truncate=168 \
+	  --param-store-filename=/dev/null \
+	  --forecaster=/dev/null \
+	  --training-filename=/dev/null
 	@echo PASS
 
 profile: lint FORCE
 	python -m cProfile -o forecast.prof main.py -n 1 \
+	  --funsor \
 	  --truncate=128 \
 	  --param-store-filename=/dev/null \
 	  --training-filename=/dev/null
@@ -26,6 +33,7 @@ profile: lint FORCE
 
 test2: lint FORCE
 	python main.py -n 1 -v --debug \
+	  --funsor \
 	  --tiny=2 \
 	  --truncate=2 \
 	  --state-dim=2 \
@@ -37,6 +45,7 @@ test2: lint FORCE
 
 test3: lint FORCE
 	python main.py -n 1 -v --debug \
+	  --funsor \
 	  --analytic-kl \
 	  --tiny=2 \
 	  --truncate=2 \
