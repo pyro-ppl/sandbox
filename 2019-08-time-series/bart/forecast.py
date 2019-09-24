@@ -16,8 +16,8 @@ from funsor.interpreter import dispatched_interpretation, interpretation
 from funsor.montecarlo import monte_carlo
 from funsor.pyro.convert import (
         AffineNormal, dist_to_funsor, matrix_and_mvn_to_funsor, tensor_to_funsor)
-from funsor.sum_product import sequential_sum_product
-from funsor.terms import Subs, reflect, Binary, Funsor
+from funsor.sum_product import MarkovProduct
+from funsor.terms import Subs, normalize, Binary, Funsor
 from preprocess import load_hourly_od
 
 
@@ -138,8 +138,8 @@ class Model(nn.Module):
 
         # Compute dynamic prior over gate_rate.
         prior = trans + obs(gate_rate=gate_rate)
-        prior = sequential_sum_product(ops.logaddexp, ops.add,
-                                       prior, "time", {"state": "state(time=1)"})
+        prior = MarkovProduct(ops.logaddexp, ops.add,
+                              prior, "time", {"state": "state(time=1)"})
         prior += init
         prior = prior.reduce(ops.logaddexp, {"state", "state(time=1)"})
 
@@ -200,7 +200,7 @@ def elbo_loss(model, guide, args, features, trip_counts):
     q = guide(features, trip_counts)
     if args.debug:
         print(f"q = {q.quote()}")
-    with interpretation(reflect):
+    with interpretation(normalize):
         p_prior, p_likelihood = model(features, trip_counts)
         if args.debug:
             print(f"p_prior = {p_prior.quote()}")
@@ -216,12 +216,16 @@ def elbo_loss(model, guide, args, features, trip_counts):
 
         elbo = exact_part + approx_part
     else:
-        with interpretation(reflect):
+        with interpretation(normalize):
             p = p_prior + p_likelihood
             pq = p - q
         # Monte Carlo approximate everything.
         with interpretation(monte_carlo):
             elbo = funsor.Integrate(q, pq, frozenset(["gate_rate_t"]))
+
+    # DEBUG
+    import sys
+    sys.exit(0)
 
     loss = -elbo
     assert not loss.inputs, loss.inputs
