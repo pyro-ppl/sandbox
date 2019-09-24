@@ -223,10 +223,6 @@ def elbo_loss(model, guide, args, features, trip_counts):
         with interpretation(monte_carlo):
             elbo = funsor.Integrate(q, pq, frozenset(["gate_rate_t"]))
 
-    # DEBUG
-    import sys
-    sys.exit(0)
-
     loss = -elbo
     assert not loss.inputs, loss.inputs
     assert isinstance(loss, funsor.Tensor), loss.pretty()
