@@ -305,6 +305,9 @@ def train(args, dataset):
     metadata = {"args": args, "losses": [], "control": control_features}
     torch.save(metadata, args.training_filename)
 
+    if args.device.startswith("cuda"):
+        torch.set_default_tensor_type('torch.cuda.FloatTensor')
+
     def optim_config(module_name, param_name):
         config = {
             "lr": args.learning_rate,
