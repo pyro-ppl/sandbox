@@ -385,6 +385,7 @@ class Forecaster:
         Given data in ``[window_begin, window_end)``, generate one or multiple
         samples predictions in ``[window_end, window_end + forecast_hours)``.
         """
+        logging.debug(f"forecasting [{window_begin}, {window_end}] -> {forecast_hours}")
         self.args.funsor = False  # sets behavior of model and guide
         assert 0 <= window_begin < window_end < window_end + forecast_hours <= len(self.counts)
         features = self.features[window_begin: window_end + forecast_hours] \
