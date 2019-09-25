@@ -63,7 +63,7 @@ test3: lint FORCE
 	  --training-filename=/dev/null
 	@echo PASS
 
-test-eval:
-	python evaluate.py -f -n 2 --truncate=9000 -v
+test-eval: lint FORCE
+	python evaluate.py -f -v -n 2 --results=temp --truncate=9000
 
 FORCE:

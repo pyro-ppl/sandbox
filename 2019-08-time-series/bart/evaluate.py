@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import subprocess
 
@@ -48,17 +49,41 @@ def forecast_one(args, config):
         if args.verbose:
             command.append('--verbose')
         command.append(f'--num-steps={args.num_steps}')
+        command.append(f'--forecast-hours={args.forecast_hours}')
+        command.append(f'--num-samples={args.num_samples}')
         command.append('--param-store-filename=/dev/null')
         command.append('--forecaster-filename=/dev/null')
         command.append('--training-filename=/dev/null')
         command.extend(config)
         command.append(f'--forecast-filename={forecast_path}')
-        print('# {}'.format(' '.join(config)))
-        if args.verbose:
-            print(' \\\n '.join(command))
+        logging.info('# {}'.format(' '.join(config)))
+        logging.debug(' \\\n '.join(command))
         subprocess.check_call(command)
 
     return torch.load(forecast_path)
+
+
+def eval_one(args, result):
+    logging.debug('evaluating')
+    pred = result['forecast']
+    truth = result['truth']
+
+    t, n, n = truth.shape
+    assert pred.shape == (args.num_samples, t, n, n)
+
+    # Evaluate point estimate using Mean Absolute Error.
+    mae = float((pred.median(dim=0).values - truth).abs().mean())
+
+    # Evaluate uncertainty using negative Continuous Ranked Probability Score.
+    # Tilmann Gneiting, Adrian E. Raftery (2007)
+    # Strictly Proper Scoring Rules, Prediction, and Estimation
+    # https://www.stat.washington.edu/raftery/Research/PDF/Gneiting2007jasa.pdf
+    crps_ = float((pred - truth).abs().mean()
+                  - 0.5 * (pred - pred.unsqueeze(1)).abs().mean())
+
+    result = {'MAE': mae, 'CRPS*': crps_}
+    logging.debug(result)
+    return result
 
 
 def main(args):
@@ -76,7 +101,11 @@ def main(args):
         results[config] = []
         for truncate in make_splits(args, dataset):
             result = forecast_one(args, config + ('--truncate={}'.format(truncate),))
-            results[config].append(result)
+            results[config].append(eval_one(args, result))
+
+    eval_filename = os.path.abspath(f'{args.results}/eval.pkl')
+    logging.info(f'Saving results to {eval_filename}')
+    torch.save(results, eval_filename)
 
 
 if __name__ == '__main__':
@@ -85,10 +114,14 @@ if __name__ == '__main__':
     parser.add_argument("--truncate", default=0, type=int)
     parser.add_argument("-n", "--num-steps", default=1001, type=int)
     parser.add_argument("--forecast-hours", default=24 * 7, type=int)
+    parser.add_argument("--num-samples", default=49, type=int)
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("-f", "--force", action="store_true")
     parser.add_argument("--pdb", action="store_true")
     parser.add_argument("--no-pdb", dest="pdb", action="store_false")
     args = parser.parse_args()
+
+    logging.basicConfig(format='%(relativeCreated) 9d %(message)s',
+                        level=logging.DEBUG if args.verbose else logging.INFO)
 
     main(args)
