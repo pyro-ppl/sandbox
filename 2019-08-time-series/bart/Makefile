@@ -64,6 +64,9 @@ test3: lint FORCE
 	@echo PASS
 
 test-eval: lint FORCE
-	python evaluate.py -f -v -n 2 --results=temp --truncate=9000
+	python evaluate.py -f -v -n 61 --results=temp --truncate=52758
+
+eval: lint FORCE
+	python -O evaluate.py
 
 FORCE:

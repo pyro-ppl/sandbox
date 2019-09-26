@@ -1,5 +1,6 @@
 import argparse
 import logging
+import multiprocessing
 import os
 import subprocess
 
@@ -27,14 +28,15 @@ def make_splits(args, dataset):
     # Ridership is minimum early Sunday morning.
     split_hour_of_week = 29
 
-    # We train HMM on at least one year of historical data.
-    min_hours = 365 * 24
+    # We train HMM on at least six years of historical data.
+    min_hours = 6 * 365 * 24
 
     stride = 24 * 7
 
     result = list(range(min_hours + split_hour_of_week,
                         total_hours - args.forecast_hours,
                         stride))
+    logging.info(f'Created {len(result)} test/train splits')
     assert result, 'truncated too short'
     return result
 
@@ -57,7 +59,7 @@ def forecast_one(args, config):
         command.append('--training-filename=/dev/null')
         command.extend(config)
         command.append(f'--forecast-filename={forecast_path}')
-        logging.info('# {}'.format(' '.join(config)))
+        logging.info('# {}'.format(' '.join(command)))
         logging.debug(' \\\n '.join(command))
         subprocess.check_call(command)
 
@@ -83,22 +85,38 @@ def eval_one(args, result):
     return result
 
 
+def process_task(task):
+    args, config, truncate = task
+    forecast = forecast_one(args, config + ('--truncate={}'.format(truncate),))
+    metrics = eval_one(args, forecast)
+    return config, truncate, metrics
+
+
 def main(args):
     dataset = load_hourly_od()
     if not os.path.exists(args.results):
         os.mkdir(args.results)
 
-    variants = [
+    configs = [
         (),
         # ('--funsor',),
         # ('--funsor', '--analytic-kl'),
     ]
+    splits = make_splits(args, dataset)
     results = {}
-    for config in variants:
-        results[config] = []
-        for truncate in make_splits(args, dataset):
-            result = forecast_one(args, config + ('--truncate={}'.format(truncate),))
-            results[config].append(eval_one(args, result))
+    map_ = map if args.parallel == 1 else multiprocessing.Pool(args.parallel).map
+
+    results = list(map_(process_task, [
+        (args, config, truncate)
+        for config in configs
+        for truncate in splits
+    ]))
+
+    # Group by config and by truncate.
+    metrics = {}
+    for config, truncate, metric in results:
+        metrics.setdefault(config, {}).setdefault(truncate, metric)
+    results = {'args': args, 'metrics': metrics}
 
     eval_filename = os.path.abspath(f'{args.results}/eval.pkl')
     logging.info(f'Saving results to {eval_filename}')
@@ -114,11 +132,12 @@ if __name__ == '__main__':
     parser.add_argument("--num-samples", default=99, type=int)
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("-f", "--force", action="store_true")
+    parser.add_argument("-p", "--parallel", default=1, type=int)
     parser.add_argument("--pdb", action="store_true")
     parser.add_argument("--no-pdb", dest="pdb", action="store_false")
     args = parser.parse_args()
 
-    logging.basicConfig(format='%(relativeCreated) 9d %(message)s',
+    logging.basicConfig(format='%(process) 5d %(relativeCreated) 9d %(message)s',
                         level=logging.DEBUG if args.verbose else logging.INFO)
 
     main(args)

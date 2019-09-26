@@ -62,7 +62,7 @@ if __name__ == "__main__":
     if not args.device:
         args.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    logging.basicConfig(format='%(relativeCreated) 9d %(message)s',
+    logging.basicConfig(format='%(process) 5d %(relativeCreated) 9d %(message)s',
                         level=logging.DEBUG if args.verbose else logging.INFO)
 
     if args.pdb:

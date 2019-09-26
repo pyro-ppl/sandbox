@@ -292,16 +292,18 @@ def train(args, dataset):
     """
     counts = dataset["counts"]
     num_stations = len(dataset["stations"])
-    logging.info("Training on {} stations over {} hours, {} batches/epoch"
-                 .format(num_stations, len(counts),
+    logging.info("Training on {} stations over {}/{} hours, {} batches/epoch"
+                 .format(num_stations,
+                         args.truncate if args.truncate else len(counts),
+                         len(counts),
                          int(math.ceil(len(counts) / args.batch_size))))
     time_features = make_time_features(args, 0, len(counts))
     control_features = (counts.max(1)[0] + counts.max(2)[0]).clamp(max=1)
-    logging.info("On average {:0.1f}/{} stations are open at any one time"
-                 .format(control_features.sum(-1).mean(), num_stations))
+    logging.debug("On average {:0.1f}/{} stations are open at any one time"
+                  .format(control_features.sum(-1).mean(), num_stations))
     features = torch.cat([time_features, control_features], -1)
     feature_dim = features.size(-1)
-    logging.info("feature_dim = {}".format(feature_dim))
+    logging.debug("feature_dim = {}".format(feature_dim))
     metadata = {"args": args, "losses": [], "control": control_features}
     torch.save(metadata, args.training_filename)
 
