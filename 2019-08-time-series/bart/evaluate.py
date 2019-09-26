@@ -4,6 +4,7 @@ import os
 import subprocess
 
 import torch
+from pyro.ops.stats import crps_empirical
 
 from preprocess import load_hourly_od
 
@@ -75,13 +76,9 @@ def eval_one(args, result):
     mae = float((pred.median(dim=0).values - truth).abs().mean())
 
     # Evaluate uncertainty using negative Continuous Ranked Probability Score.
-    # Tilmann Gneiting, Adrian E. Raftery (2007)
-    # Strictly Proper Scoring Rules, Prediction, and Estimation
-    # https://www.stat.washington.edu/raftery/Research/PDF/Gneiting2007jasa.pdf
-    crps_ = float((pred - truth).abs().mean()
-                  - 0.5 * (pred - pred.unsqueeze(1)).abs().mean())
+    crps = float(crps_empirical(pred, truth).mean())
 
-    result = {'MAE': mae, 'CRPS*': crps_}
+    result = {'MAE': mae, 'CRPS': crps}
     logging.debug(result)
     return result
 
@@ -114,7 +111,7 @@ if __name__ == '__main__':
     parser.add_argument("--truncate", default=0, type=int)
     parser.add_argument("-n", "--num-steps", default=1001, type=int)
     parser.add_argument("--forecast-hours", default=24 * 7, type=int)
-    parser.add_argument("--num-samples", default=49, type=int)
+    parser.add_argument("--num-samples", default=99, type=int)
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("-f", "--force", action="store_true")
     parser.add_argument("--pdb", action="store_true")
