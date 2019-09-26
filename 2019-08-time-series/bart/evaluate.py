@@ -63,7 +63,7 @@ def forecast_one(args, config):
         logging.debug(' \\\n '.join(command))
         subprocess.check_call(command)
 
-    return torch.load(forecast_path)
+    return torch.load(forecast_path, map_location=args.device)
 
 
 def eval_one(args, result):
@@ -81,7 +81,7 @@ def eval_one(args, result):
     crps = float(crps_empirical(pred, truth).mean())
 
     result = {'MAE': mae, 'CRPS': crps}
-    logging.debug(result)
+    logging.info(result)
     return result
 
 
@@ -89,6 +89,9 @@ def process_task(task):
     args, config, truncate = task
     forecast = forecast_one(args, config + ('--truncate={}'.format(truncate),))
     metrics = eval_one(args, forecast)
+    del forecast
+    if args.device.startswith('cuda'):
+        torch.cuda.empty_cache()
     return config, truncate, metrics
 
 
@@ -125,17 +128,21 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="BART forecasting evaluation")
+    parser.add_argument("-f", "--force", action="store_true")
     parser.add_argument("--results", default="results")
     parser.add_argument("--truncate", default=0, type=int)
     parser.add_argument("-n", "--num-steps", default=1001, type=int)
     parser.add_argument("--forecast-hours", default=24 * 7, type=int)
     parser.add_argument("--num-samples", default=99, type=int)
-    parser.add_argument("-v", "--verbose", action="store_true")
-    parser.add_argument("-f", "--force", action="store_true")
+    parser.add_argument("--device", default="")
+    parser.add_argument("--cuda", dest="device", action="store_const", const="cuda")
     parser.add_argument("-p", "--parallel", default=1, type=int)
+    parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--pdb", action="store_true")
     parser.add_argument("--no-pdb", dest="pdb", action="store_false")
     args = parser.parse_args()
+    if not args.device:
+        args.device = "cuda" if torch.cuda.is_available() else "cpu"
 
     logging.basicConfig(format='%(process) 5d %(relativeCreated) 9d %(message)s',
                         level=logging.DEBUG if args.verbose else logging.INFO)

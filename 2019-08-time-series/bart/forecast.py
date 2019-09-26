@@ -292,11 +292,10 @@ def train(args, dataset):
     """
     counts = dataset["counts"]
     num_stations = len(dataset["stations"])
+    train_size = args.truncate if args.truncate else len(counts)
     logging.info("Training on {} stations over {}/{} hours, {} batches/epoch"
-                 .format(num_stations,
-                         args.truncate if args.truncate else len(counts),
-                         len(counts),
-                         int(math.ceil(len(counts) / args.batch_size))))
+                 .format(num_stations, train_size, len(counts),
+                         int(math.ceil(train_size / args.batch_size))))
     time_features = make_time_features(args, 0, len(counts))
     control_features = (counts.max(1)[0] + counts.max(2)[0]).clamp(max=1)
     logging.debug("On average {:0.1f}/{} stations are open at any one time"
