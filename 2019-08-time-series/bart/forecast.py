@@ -67,7 +67,7 @@ class Model(nn.Module):
         if not time_shape:
             time_shape = (1,)
         gate, rate = gate_rate.reshape(sample_shape + time_shape + (2, n, n)).unbind(-3)
-        gate = gate.sigmoid()
+        gate = gate.sigmoid().clamp(min=0.01, max=0.99)
         rate = bounded_exp(rate, bound=1e4)
         return gate, rate
 
@@ -168,7 +168,7 @@ class Model(nn.Module):
         def unpack_gate_rate(gate_rate):
             batch_shape = gate_rate.shape[:-1]
             gate, rate = gate_rate.reshape(batch_shape + (2, n, n)).unbind(-3)
-            gate = gate.sigmoid()
+            gate = gate.sigmoid().clamp(min=0.01, max=0.99)
             rate = bounded_exp(rate, bound=1e4)
             gate = torch.stack((1 - gate, gate), dim=-1)
             return gate, rate
@@ -314,7 +314,7 @@ def train(args, dataset):
         config = {
             "lr": args.learning_rate,
             "betas": (0.8, 0.99),
-            "weight_decay": 0.01 ** (1 / args.num_steps),
+            "lrd": 0.1 ** (1 / args.num_steps),
         }
         if param_name == "init_scale":
             config["lr"] *= 0.1  # init_dist sees much less data per minibatch
