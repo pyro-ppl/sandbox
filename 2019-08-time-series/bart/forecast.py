@@ -106,6 +106,8 @@ class Model(nn.Module):
         pyro.module("model", self)
         if self.args.funsor:
             return self._forward_funsor(features, trip_counts)
+        elif self.args.mean_field:
+            return self._forward_pyro_mean_field(features, trip_counts)
         else:
             return self._forward_pyro(features, trip_counts)
 
@@ -129,16 +131,23 @@ class Model(nn.Module):
                         obs=trip_counts)
 
         # The second half of the model forecasts forward.
+        if total_hours > observed_hours:
+            state_dist = hmm.filter(gate_rate)
+            return self._forward_pyro_forecast(
+                features, trip_counts, origins_plate, destins_plate,
+                state_dist=state_dist)
+
+    def _forward_pyro_forecast(self, features, trip_counts, origins_plate, destins_plate,
+                               state=None, state_dist=None):
+        total_hours = len(features)
+        observed_hours, num_origins, num_destins = trip_counts.shape
         forecast = []
         forecast_hours = total_hours - observed_hours
         if forecast_hours > 0:
             _, trans_matrix, trans_dist, obs_matrix, obs_dist = \
                 self._dynamics(features[observed_hours:])
-        state = None
         for t in range(forecast_hours):
-            if state is None:  # on first step
-                state_dist = hmm.filter(gate_rate)
-            else:
+            if state is not None:
                 loc = vm(state, trans_matrix) + trans_dist.loc
                 scale_tril = trans_dist.scale_tril
                 state_dist = dist.MultivariateNormal(loc, scale_tril=scale_tril)
@@ -203,6 +212,46 @@ class Model(nn.Module):
         assert set(likelihood.inputs) == {"gate_rate_t"}, likelihood.inputs
         return prior, likelihood
 
+    def _forward_pyro_mean_field(self, features, trip_counts):
+        total_hours = len(features)
+        observed_hours, num_origins, num_destins = trip_counts.shape
+        assert observed_hours <= total_hours
+        assert num_origins == self.num_stations
+        assert num_destins == self.num_stations
+        time_plate = pyro.plate("time", observed_hours, dim=-3)
+        origins_plate = pyro.plate("origins", num_origins, dim=-2)
+        destins_plate = pyro.plate("destins", num_destins, dim=-1)
+        init_dist, trans_matrix, trans_dist, obs_matrix, obs_dist = \
+            self._dynamics(features[:observed_hours])
+
+        # This is a parallelizable crf representation of the HMM.
+        # We first pull random variables from the guide, masking all factors.
+        with poutine.mask(mask=False):
+            shape = (1 + observed_hours, self.args.state_dim)  # includes init
+            state = pyro.sample("state",
+                                dist.Normal(0, 1).expand(shape).to_event(2))
+
+            shape = (observed_hours, 2 * num_origins * num_destins)
+            gate_rate = pyro.sample("gate_rate",
+                                    dist.Normal(0, 1).expand(shape).to_event(2))
+
+        # We then declare CRF factors.
+        pyro.sample("init", init_dist, obs=state[0])
+        pyro.sample("trans", trans_dist.expand((observed_hours,)).to_event(1),
+                    obs=state[..., 1:, :] - state[..., :-1, :] @ trans_matrix)
+        pyro.sample("obs", obs_dist.expand((observed_hours,)).to_event(1),
+                    obs=gate_rate - state[..., 1:, :] @ obs_matrix)
+        gate, rate = self._unpack_gate_rate(gate_rate, event_dim=2)
+        with time_plate, origins_plate, destins_plate:
+            pyro.sample("trip_count", dist.ZeroInflatedPoisson(gate, rate),
+                        obs=trip_counts)
+
+        # The second half of the model forecasts forward.
+        if total_hours > observed_hours:
+            return self._forward_pyro_forecast(
+                features, trip_counts, origins_plate, destins_plate,
+                state=state[..., -1, :])
+
 
 class Guide(nn.Module):
     """
@@ -226,6 +275,16 @@ class Guide(nn.Module):
         self.lowrank[0].bias.data.fill_(0)
         self.lowrank[2].bias.data.fill_(0)
 
+        # Latent state is sampled from a diagonal distribution whose parameters
+        # are estimated via a diagonal + pooled approximation.
+        if args.mean_field:
+            self.mf_layer_0 = nn.Linear(2 + feature_dim + num_stations ** 2, args.guide_rank)
+            self.mf_layer_1 = nn.Linear(args.guide_rank, 2 * args.state_dim)
+            self.mf_highpass = nn.Parameter(torch.full((2 * args.state_dim,), 0.5))
+            self.mf_lowpass = nn.Parameter(torch.full((2 * args.state_dim,), 0.5))
+            self.mf_layer_0.bias.data.fill_(0)
+            self.mf_layer_1.bias.data.fill_(0)
+
     def forward(self, features, trip_counts):
         pyro.module("guide", self)
         assert features.dim() == 2
@@ -236,17 +295,29 @@ class Guide(nn.Module):
                      self.lowrank(torch.cat([features[:observed_hours], log_counts], dim=-1)))
         loc, scale = loc_scale.reshape(observed_hours, 2, -1).unbind(1)
         scale = bounded_exp(scale, bound=10.)
-        if self.args.funsor:
-            return self._forward_funsor(loc, scale)
-        else:
-            return self._forward_pyro(loc, scale)
 
-    def _forward_pyro(self, loc, scale):
+        if self.args.funsor:
+            diag_normal = dist.Normal(loc, scale).to_event(2)
+            return dist_to_funsor(diag_normal)(value="gate_rate_t")
+
         pyro.sample("gate_rate", dist.Normal(loc, scale).to_event(2))
 
-    def _forward_funsor(self, loc, scale):
-        diag_normal = dist.Normal(loc, scale).to_event(2)
-        return dist_to_funsor(diag_normal)(value="gate_rate_t")
+        if self.args.mean_field:
+            time = torch.arange(observed_hours, dtype=features.dtype, device=features.device)
+            temp = torch.cat([
+                time.unsqueeze(-1),
+                (observed_hours - 1 - time).unsqueeze(-1),
+                features[:observed_hours],
+                log_counts,
+            ], dim=-1)
+            temp = self.mf_layer_0(temp).sigmoid()
+            temp = self.mf_layer_1(temp).sigmoid()
+            temp = (self.mf_highpass * temp +
+                    self.mf_lowpass * temp.mean(0, keepdim=True))
+            temp = torch.cat([temp[:1], temp], dim=0)  # copy initial state.
+            loc = temp[:, :self.args.state_dim]
+            scale = temp[:, self.args.state_dim:]
+            pyro.sample("state", dist.Normal(loc, scale).to_event(2))
 
 
 class Funsor_ELBO:

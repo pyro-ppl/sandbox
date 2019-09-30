@@ -102,6 +102,7 @@ def main(args):
 
     configs = [
         (),
+        ('--mean-field',),
         # ('--funsor',),
         # ('--funsor', '--analytic-kl'),
     ]
