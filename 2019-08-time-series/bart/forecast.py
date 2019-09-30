@@ -316,7 +316,7 @@ class Guide(nn.Module):
                     self.mf_lowpass * temp.mean(0, keepdim=True))
             temp = torch.cat([temp[:1], temp], dim=0)  # copy initial state.
             loc = temp[:, :self.args.state_dim]
-            scale = temp[:, self.args.state_dim:]
+            scale = bounded_exp(temp[:, self.args.state_dim:], bound=10.)
             pyro.sample("state", dist.Normal(loc, scale).to_event(2))
 
 

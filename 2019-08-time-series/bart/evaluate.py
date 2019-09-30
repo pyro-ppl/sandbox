@@ -87,6 +87,8 @@ def eval_one(args, result):
 
 def process_task(task):
     args, config, truncate = task
+    logging.basicConfig(format='%(process) 5d %(relativeCreated) 9d %(message)s',
+                        level=logging.DEBUG if args.verbose else logging.INFO)
     forecast = forecast_one(args, config + ('--truncate={}'.format(truncate),))
     metrics = eval_one(args, forecast)
     del forecast
@@ -144,6 +146,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if not args.device:
         args.device = "cuda" if torch.cuda.is_available() else "cpu"
+    if args.parallel > 1 and args.device.startswith("cuda"):
+        multiprocessing.set_start_method('forkserver')
 
     logging.basicConfig(format='%(process) 5d %(relativeCreated) 9d %(message)s',
                         level=logging.DEBUG if args.verbose else logging.INFO)
