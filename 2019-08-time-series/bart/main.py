@@ -20,12 +20,18 @@ def main(args):
     if forecaster is None:
         return
 
-    truth = dataset['counts'][args.truncate: args.truncate + args.forecast_hours]
-    forecast = forecaster(max(0, args.truncate - args.batch_size),
-                          args.truncate, args.forecast_hours,
+    window_begin = max(0, args.truncate - args.batch_size)
+    window_end = args.truncate
+    truth = dataset['counts'][window_end: window_end + args.forecast_hours]
+    forecast = forecaster(window_begin, window_end, args.forecast_hours,
                           num_samples=args.num_samples)
     assert forecast.shape == (args.num_samples,) + truth.shape
-    torch.save({'forecast': forecast, 'truth': truth}, args.forecast_filename)
+    log_prob = forecaster.log_prob(window_begin, window_end, truth) / truth.numel()
+    torch.save({
+        'forecast': forecast,
+        'truth': truth,
+        'log_prob': log_prob,
+    }, args.forecast_filename)
 
 
 if __name__ == "__main__":

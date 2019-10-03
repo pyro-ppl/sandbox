@@ -80,7 +80,7 @@ def eval_one(args, result):
     # Evaluate uncertainty using negative Continuous Ranked Probability Score.
     crps = float(crps_empirical(pred, truth).mean())
 
-    result = {'MAE': mae, 'CRPS': crps}
+    result = {'MAE': mae, 'CRPS': crps, 'ELBO': result['log_prob']}
     logging.info(result)
     return result
 

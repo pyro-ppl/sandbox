@@ -478,3 +478,19 @@ class Forecaster:
             forecast = model(features, counts)
         assert len(forecast) == forecast_hours
         return torch.cat(forecast, dim=-3).cpu()
+
+    @torch.no_grad()
+    def log_prob(self, window_begin, window_end, truth):
+        forecast_hours = len(truth)
+        self.args.funsor = False  # sets behavior of model and guide
+        assert 0 <= window_begin < window_end < window_end + forecast_hours <= len(self.counts)
+        features = self.features[window_begin: window_end + forecast_hours] \
+                       .to(device=self.args.device)
+        x = self.counts[window_begin: window_end].to(device=self.args.device)
+        y = truth.to(device=self.args.device)
+        xy = torch.cat([x, y], dim=0)
+
+        loss = TraceMeanField_ELBO().loss
+        logp_x = -loss(self.model, self.guide, features[:len(x)], x)
+        logp_xy = -loss(self.model, self.guide, features[:len(xy)], xy)
+        return logp_xy - logp_x
