@@ -89,4 +89,7 @@ test-eval: lint FORCE
 eval: lint FORCE
 	python -O evaluate.py
 
+forecast: lint FORCE
+	python main.py --truncate=60000 --verbose
+
 FORCE:
