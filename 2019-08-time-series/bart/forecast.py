@@ -10,6 +10,16 @@ from pyro.infer import SVI, Trace_ELBO, TraceMeanField_ELBO
 from pyro.optim import ClippedAdam
 from torch.distributions import constraints
 
+import funsor
+import funsor.distributions as fdist
+import funsor.ops as ops
+from funsor.domains import reals
+from funsor.interpreter import interpretation
+from funsor.montecarlo import monte_carlo
+from funsor.pyro.convert import dist_to_funsor, matrix_and_mvn_to_funsor, tensor_to_funsor
+from funsor.sum_product import MarkovProduct
+from funsor.terms import normalize
+
 
 def vm(vector, matrix):
     return vector.unsqueeze(-2).matmul(matrix).squeeze(-2)
@@ -57,7 +67,7 @@ class Model(nn.Module):
         if not time_shape:
             time_shape = (1,)
         gate, rate = gate_rate.reshape(sample_shape + time_shape + (2, n, n)).unbind(-3)
-        gate = gate.sigmoid()
+        gate = gate.sigmoid().clamp(min=0.01, max=0.99)
         rate = bounded_exp(rate, bound=1e4)
         return gate, rate
 
@@ -94,6 +104,14 @@ class Model(nn.Module):
 
     def forward(self, features, trip_counts):
         pyro.module("model", self)
+        if self.args.funsor:
+            return self._forward_funsor(features, trip_counts)
+        elif self.args.mean_field:
+            return self._forward_pyro_mean_field(features, trip_counts)
+        else:
+            return self._forward_pyro(features, trip_counts)
+
+    def _forward_pyro(self, features, trip_counts):
         total_hours = len(features)
         observed_hours, num_origins, num_destins = trip_counts.shape
         assert observed_hours <= total_hours
@@ -113,16 +131,23 @@ class Model(nn.Module):
                         obs=trip_counts)
 
         # The second half of the model forecasts forward.
+        if total_hours > observed_hours:
+            state_dist = hmm.filter(gate_rate)
+            return self._forward_pyro_forecast(
+                features, trip_counts, origins_plate, destins_plate,
+                state_dist=state_dist)
+
+    def _forward_pyro_forecast(self, features, trip_counts, origins_plate, destins_plate,
+                               state=None, state_dist=None):
+        total_hours = len(features)
+        observed_hours, num_origins, num_destins = trip_counts.shape
         forecast = []
         forecast_hours = total_hours - observed_hours
         if forecast_hours > 0:
             _, trans_matrix, trans_dist, obs_matrix, obs_dist = \
                 self._dynamics(features[observed_hours:])
-        state = None
         for t in range(forecast_hours):
-            if state is None:  # on first step
-                state_dist = hmm.filter(gate_rate)
-            else:
+            if state is not None:
                 loc = vm(state, trans_matrix) + trans_dist.loc
                 scale_tril = trans_dist.scale_tril
                 state_dist = dist.MultivariateNormal(loc, scale_tril=scale_tril)
@@ -139,6 +164,94 @@ class Model(nn.Module):
                                             dist.ZeroInflatedPoisson(gate, rate)))
         return forecast
 
+    def _forward_funsor(self, features, trip_counts):
+        total_hours = len(features)
+        observed_hours, num_origins, num_destins = trip_counts.shape
+        assert observed_hours == total_hours
+        assert num_origins == self.num_stations
+        assert num_destins == self.num_stations
+        n = self.num_stations
+        gate_rate = funsor.Variable("gate_rate_t", reals(observed_hours, 2 * n * n))["time"]
+
+        @funsor.torch.function(reals(2 * n * n), (reals(n, n, 2), reals(n, n)))
+        def unpack_gate_rate(gate_rate):
+            batch_shape = gate_rate.shape[:-1]
+            gate, rate = gate_rate.reshape(batch_shape + (2, n, n)).unbind(-3)
+            gate = gate.sigmoid().clamp(min=0.01, max=0.99)
+            rate = bounded_exp(rate, bound=1e4)
+            gate = torch.stack((1 - gate, gate), dim=-1)
+            return gate, rate
+
+        # Create a Gaussian latent dynamical system.
+        init_dist, trans_matrix, trans_dist, obs_matrix, obs_dist = \
+            self._dynamics(features[:observed_hours])
+        init = dist_to_funsor(init_dist)(value="state")
+        trans = matrix_and_mvn_to_funsor(trans_matrix, trans_dist,
+                                         ("time",), "state", "state(time=1)")
+        obs = matrix_and_mvn_to_funsor(obs_matrix, obs_dist,
+                                       ("time",), "state(time=1)", "gate_rate")
+
+        # Compute dynamic prior over gate_rate.
+        prior = trans + obs(gate_rate=gate_rate)
+        prior = MarkovProduct(ops.logaddexp, ops.add,
+                              prior, "time", {"state": "state(time=1)"})
+        prior += init
+        prior = prior.reduce(ops.logaddexp, {"state", "state(time=1)"})
+
+        # Compute zero-inflated Poisson likelihood.
+        gate, rate = unpack_gate_rate(gate_rate)
+        likelihood = fdist.Categorical(gate["origin", "destin"], value="gated")
+        trip_counts = tensor_to_funsor(trip_counts, ("time", "origin", "destin"))
+        likelihood += funsor.Stack("gated", (
+            fdist.Poisson(rate["origin", "destin"], value=trip_counts),
+            fdist.Delta(0, value=trip_counts)))
+        likelihood = likelihood.reduce(ops.logaddexp, "gated")
+        likelihood = likelihood.reduce(ops.add, {"time", "origin", "destin"})
+
+        assert set(prior.inputs) == {"gate_rate_t"}, prior.inputs
+        assert set(likelihood.inputs) == {"gate_rate_t"}, likelihood.inputs
+        return prior, likelihood
+
+    def _forward_pyro_mean_field(self, features, trip_counts):
+        total_hours = len(features)
+        observed_hours, num_origins, num_destins = trip_counts.shape
+        assert observed_hours <= total_hours
+        assert num_origins == self.num_stations
+        assert num_destins == self.num_stations
+        time_plate = pyro.plate("time", observed_hours, dim=-3)
+        origins_plate = pyro.plate("origins", num_origins, dim=-2)
+        destins_plate = pyro.plate("destins", num_destins, dim=-1)
+        init_dist, trans_matrix, trans_dist, obs_matrix, obs_dist = \
+            self._dynamics(features[:observed_hours])
+
+        # This is a parallelizable crf representation of the HMM.
+        # We first pull random variables from the guide, masking all factors.
+        with poutine.mask(mask=False):
+            shape = (1 + observed_hours, self.args.state_dim)  # includes init
+            state = pyro.sample("state",
+                                dist.Normal(0, 1).expand(shape).to_event(2))
+
+            shape = (observed_hours, 2 * num_origins * num_destins)
+            gate_rate = pyro.sample("gate_rate",
+                                    dist.Normal(0, 1).expand(shape).to_event(2))
+
+        # We then declare CRF factors.
+        pyro.sample("init", init_dist, obs=state[0])
+        pyro.sample("trans", trans_dist.expand((observed_hours,)).to_event(1),
+                    obs=state[..., 1:, :] - state[..., :-1, :] @ trans_matrix)
+        pyro.sample("obs", obs_dist.expand((observed_hours,)).to_event(1),
+                    obs=gate_rate - state[..., 1:, :] @ obs_matrix)
+        gate, rate = self._unpack_gate_rate(gate_rate, event_dim=2)
+        with time_plate, origins_plate, destins_plate:
+            pyro.sample("trip_count", dist.ZeroInflatedPoisson(gate, rate),
+                        obs=trip_counts)
+
+        # The second half of the model forecasts forward.
+        if total_hours > observed_hours:
+            return self._forward_pyro_forecast(
+                features, trip_counts, origins_plate, destins_plate,
+                state=state[..., -1, :])
+
 
 class Guide(nn.Module):
     """
@@ -147,6 +260,7 @@ class Guide(nn.Module):
     """
     def __init__(self, args, features, trip_counts):
         super().__init__()
+        self.args = args
         feature_dim = features.size(-1)
         num_stations = trip_counts.size(-1)
 
@@ -161,6 +275,16 @@ class Guide(nn.Module):
         self.lowrank[0].bias.data.fill_(0)
         self.lowrank[2].bias.data.fill_(0)
 
+        # Latent state is sampled from a diagonal distribution whose parameters
+        # are estimated via a diagonal + pooled approximation.
+        if args.mean_field:
+            self.mf_layer_0 = nn.Linear(2 + feature_dim + num_stations ** 2, args.guide_rank)
+            self.mf_layer_1 = nn.Linear(args.guide_rank, 2 * args.state_dim)
+            self.mf_highpass = nn.Parameter(torch.full((2 * args.state_dim,), 0.5))
+            self.mf_lowpass = nn.Parameter(torch.full((2 * args.state_dim,), 0.5))
+            self.mf_layer_0.bias.data.fill_(0)
+            self.mf_layer_1.bias.data.fill_(0)
+
     def forward(self, features, trip_counts):
         pyro.module("guide", self)
         assert features.dim() == 2
@@ -171,7 +295,66 @@ class Guide(nn.Module):
                      self.lowrank(torch.cat([features[:observed_hours], log_counts], dim=-1)))
         loc, scale = loc_scale.reshape(observed_hours, 2, -1).unbind(1)
         scale = bounded_exp(scale, bound=10.)
+
+        if self.args.funsor:
+            diag_normal = dist.Normal(loc, scale).to_event(2)
+            return dist_to_funsor(diag_normal)(value="gate_rate_t")
+
         pyro.sample("gate_rate", dist.Normal(loc, scale).to_event(2))
+
+        if self.args.mean_field:
+            time = torch.arange(observed_hours, dtype=features.dtype, device=features.device)
+            temp = torch.cat([
+                time.unsqueeze(-1),
+                (observed_hours - 1 - time).unsqueeze(-1),
+                features[:observed_hours],
+                log_counts,
+            ], dim=-1)
+            temp = self.mf_layer_0(temp).sigmoid()
+            temp = self.mf_layer_1(temp).sigmoid()
+            temp = (self.mf_highpass * temp +
+                    self.mf_lowpass * temp.mean(0, keepdim=True))
+            temp = torch.cat([temp[:1], temp], dim=0)  # copy initial state.
+            loc = temp[:, :self.args.state_dim]
+            scale = bounded_exp(temp[:, self.args.state_dim:], bound=10.)
+            pyro.sample("state", dist.Normal(loc, scale).to_event(2))
+
+
+class Funsor_ELBO:
+    def __init__(self, args):
+        self.args = args
+
+    def __call__(self, model, guide, features, trip_counts):
+        q = guide(features, trip_counts)
+        if self.args.debug:
+            print(f"q = {q.quote()}")
+        with interpretation(normalize):
+            p_prior, p_likelihood = model(features, trip_counts)
+            if self.args.debug:
+                print(f"p_prior = {p_prior.quote()}")
+                print(f"p_likelihood = {p_likelihood.quote()}")
+
+        if self.args.analytic_kl:
+            # We can compute the KL part exactly.
+            exact_part = funsor.Integrate(q, p_prior - q, frozenset(["gate_rate_t"]))
+
+            # But we need to Monte Carlo approximate to compute likelihood.
+            with interpretation(monte_carlo):
+                approx_part = funsor.Integrate(q, p_likelihood, frozenset(["gate_rate_t"]))
+
+            elbo = exact_part + approx_part
+        else:
+            with interpretation(normalize):
+                p = p_prior + p_likelihood
+                pq = p - q
+            # Monte Carlo approximate everything.
+            with interpretation(monte_carlo):
+                elbo = funsor.Integrate(q, pq, frozenset(["gate_rate_t"]))
+
+        loss = -elbo
+        assert not loss.inputs, loss.inputs
+        assert isinstance(loss, funsor.Tensor), loss.pretty()
+        return loss.data
 
 
 def train(args, dataset):
@@ -180,24 +363,28 @@ def train(args, dataset):
     """
     counts = dataset["counts"]
     num_stations = len(dataset["stations"])
-    logging.info("Training on {} stations over {} hours, {} batches/epoch"
-                 .format(num_stations, len(counts),
-                         int(math.ceil(len(counts) / args.batch_size))))
+    train_size = args.truncate if args.truncate else len(counts)
+    logging.info("Training on {} stations over {}/{} hours, {} batches/epoch"
+                 .format(num_stations, train_size, len(counts),
+                         int(math.ceil(train_size / args.batch_size))))
     time_features = make_time_features(args, 0, len(counts))
     control_features = (counts.max(1)[0] + counts.max(2)[0]).clamp(max=1)
-    logging.info("On average {:0.1f}/{} stations are open at any one time"
-                 .format(control_features.sum(-1).mean(), num_stations))
+    logging.debug("On average {:0.1f}/{} stations are open at any one time"
+                  .format(control_features.sum(-1).mean(), num_stations))
     features = torch.cat([time_features, control_features], -1)
     feature_dim = features.size(-1)
-    logging.info("feature_dim = {}".format(feature_dim))
+    logging.debug("feature_dim = {}".format(feature_dim))
     metadata = {"args": args, "losses": [], "control": control_features}
     torch.save(metadata, args.training_filename)
+
+    if args.device.startswith("cuda"):
+        torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
     def optim_config(module_name, param_name):
         config = {
             "lr": args.learning_rate,
             "betas": (0.8, 0.99),
-            "weight_decay": 0.01 ** (1 / args.num_steps),
+            "lrd": 0.1 ** (1 / args.num_steps),
         }
         if param_name == "init_scale":
             config["lr"] *= 0.1  # init_dist sees much less data per minibatch
@@ -207,9 +394,14 @@ def train(args, dataset):
     data_size = len(training_counts)
     model = Model(args, features, training_counts).to(device=args.device)
     guide = Guide(args, features, training_counts).to(device=args.device)
-    elbo = (TraceMeanField_ELBO if args.analytic_kl else Trace_ELBO)()
-    optim = ClippedAdam(optim_config)
-    svi = SVI(model, guide, optim, elbo)
+    optimizer = ClippedAdam(optim_config)
+    if args.funsor:
+        elbo = Funsor_ELBO(args)
+    elif args.analytic_kl:
+        elbo = TraceMeanField_ELBO()
+    else:
+        elbo = Trace_ELBO()
+    svi = SVI(model, guide, optimizer, elbo)
     losses = []
     forecaster = None
     for step in range(args.num_steps):
@@ -265,6 +457,8 @@ class Forecaster:
         Given data in ``[window_begin, window_end)``, generate one or multiple
         samples predictions in ``[window_end, window_end + forecast_hours)``.
         """
+        logging.debug(f"forecasting [{window_begin}, {window_end}] -> {forecast_hours}")
+        self.args.funsor = False  # sets behavior of model and guide
         assert 0 <= window_begin < window_end < window_end + forecast_hours <= len(self.counts)
         features = self.features[window_begin: window_end + forecast_hours] \
                        .to(device=self.args.device)
@@ -284,3 +478,19 @@ class Forecaster:
             forecast = model(features, counts)
         assert len(forecast) == forecast_hours
         return torch.cat(forecast, dim=-3).cpu()
+
+    @torch.no_grad()
+    def log_prob(self, window_begin, window_end, truth):
+        forecast_hours = len(truth)
+        self.args.funsor = False  # sets behavior of model and guide
+        assert 0 <= window_begin < window_end < window_end + forecast_hours <= len(self.counts)
+        features = self.features[window_begin: window_end + forecast_hours] \
+                       .to(device=self.args.device)
+        x = self.counts[window_begin: window_end].to(device=self.args.device)
+        y = truth.to(device=self.args.device)
+        xy = torch.cat([x, y], dim=0)
+
+        loss = TraceMeanField_ELBO().loss
+        logp_x = -loss(self.model, self.guide, features[:len(x)], x)
+        logp_xy = -loss(self.model, self.guide, features[:len(xy)], xy)
+        return logp_xy - logp_x
