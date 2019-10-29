@@ -9,7 +9,7 @@ from preprocess import load_hourly_od
 
 
 def main(args):
-    assert pyro.__version__ >= "0.4.1"
+    assert pyro.__version__ > "0.5.1"
     pyro.enable_validation(__debug__)
     pyro.set_rng_seed(args.seed)
     dataset = load_hourly_od(args)
