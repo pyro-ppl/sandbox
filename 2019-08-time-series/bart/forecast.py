@@ -1,5 +1,6 @@
 import logging
 import math
+import warnings
 
 import pyro
 import pyro.distributions as dist
@@ -8,6 +9,7 @@ import torch
 import torch.nn as nn
 from pyro.infer import SVI, Trace_ELBO, TraceMeanField_ELBO
 from pyro.optim import ClippedAdam
+from pyro.params import constraint
 from torch.distributions import constraints
 
 import funsor
@@ -47,14 +49,29 @@ class Model(nn.Module):
         super().__init__()
         self.args = args
         self.num_stations = trip_counts.size(-1)
+        state_dim = args.state_dim
         feature_dim = features.size(-1)
         gate_rate_dim = 2 * self.num_stations ** 2
+
         self.nn = nn.Sequential(
             nn.Linear(feature_dim, args.model_nn_dim),
             nn.Sigmoid(),
             nn.Linear(args.model_nn_dim, 2 * gate_rate_dim))
         self.nn[0].bias.data.fill_(0)
         self.nn[2].bias.data.fill_(0)
+
+        self.init_scale = nn.Parameter(torch.full((state_dim,), 10.))
+        self.trans_matrix = nn.Parameter(0.99 * torch.eye(state_dim))
+        self.trans_scale = nn.Parameter(0.1 * torch.ones(state_dim))
+        self.obs_matrix = nn.Parameter(torch.randn(state_dim, gate_rate_dim))
+
+    @constraint
+    def init_scale(self):
+        return constraints.positive
+
+    @constraint
+    def trans_scale(self):
+        return constraints.positive
 
     def _unpack_gate_rate(self, gate_rate, event_dim):
         """
@@ -80,20 +97,15 @@ class Model(nn.Module):
         gate_rate_dim = 2 * self.num_stations ** 2
 
         init_loc = torch.zeros(state_dim, device=device)
-        init_scale_tril = pyro.param("init_scale",
-                                     torch.full((state_dim,), 10., device=device),
-                                     constraint=constraints.positive).diag_embed()
+        init_scale_tril = self.init_scale.diag_embed()
         init_dist = dist.MultivariateNormal(init_loc, scale_tril=init_scale_tril)
 
-        trans_matrix = pyro.param("trans_matrix",
-                                  0.99 * torch.eye(state_dim, device=device))
+        trans_matrix = self.trans_matrix
         trans_loc = torch.zeros(state_dim, device=device)
-        trans_scale_tril = pyro.param("trans_scale",
-                                      0.1 * torch.ones(state_dim, device=device),
-                                      constraint=constraints.positive).diag_embed()
+        trans_scale_tril = self.trans_scale.diag_embed()
         trans_dist = dist.MultivariateNormal(trans_loc, scale_tril=trans_scale_tril)
 
-        obs_matrix = pyro.param("obs_matrix", torch.randn(state_dim, gate_rate_dim, device=device))
+        obs_matrix = self.obs_matrix
         obs_matrix.data /= obs_matrix.data.norm(dim=-1, keepdim=True)
         loc_scale = self.nn(features)
         loc, scale = loc_scale.reshape(loc_scale.shape[:-1] + (2, gate_rate_dim)).unbind(-2)
@@ -416,16 +428,18 @@ def train(args, dataset):
 
         if step % 20 == 0:
             # Save state every few steps.
-            pyro.get_param_store().save(args.param_store_filename)
             metadata = {"args": args, "losses": losses, "control": control_features}
             torch.save(metadata, args.training_filename)
             forecaster = Forecaster(args, dataset, features, model, guide)
-            torch.save(forecaster, args.forecaster_filename)
+            # Work around https://github.com/pytorch/pytorch/issues/27972
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=UserWarning)
+                torch.save(forecaster, args.forecaster_filename)
 
             if logging.Logger(None).isEnabledFor(logging.DEBUG):
-                init_scale = pyro.param("init_scale").data
-                trans_scale = pyro.param("trans_scale").data
-                trans_matrix = pyro.param("trans_matrix").data
+                init_scale = model.init_scale.data
+                trans_scale = model.trans_scale.data
+                trans_matrix = model.trans_matrix.data
                 eigs = trans_matrix.eig()[0].norm(dim=-1).sort(descending=True).values
                 logging.debug("guide.diag_part = {}".format(guide.diag_part.data.squeeze()))
                 logging.debug("init scale min/mean/max: {:0.3g} {:0.3g} {:0.3g}"

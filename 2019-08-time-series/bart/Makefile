@@ -6,28 +6,24 @@ lint: FORCE
 test: lint FORCE
 	python main.py -n 2 -v \
 	  --truncate=168 \
-	  --param-store-filename=/dev/null \
 	  --forecaster-filename=/dev/null \
 	  --forecast-filename=/dev/null \
 	  --training-filename=/dev/null
 	python main.py -n 2 -v \
 	  --analytic-kl \
 	  --truncate=168 \
-	  --param-store-filename=/dev/null \
 	  --forecaster-filename=/dev/null \
 	  --forecast-filename=/dev/null \
 	  --training-filename=/dev/null
 	python main.py -n 2 -v \
 	  --funsor \
 	  --truncate=168 \
-	  --param-store-filename=/dev/null \
 	  --forecaster-filename=/dev/null \
 	  --forecast-filename=/dev/null \
 	  --training-filename=/dev/null
 	python main.py -n 2 -v \
 	  --mean-field \
 	  --truncate=168 \
-	  --param-store-filename=/dev/null \
 	  --forecaster-filename=/dev/null \
 	  --forecast-filename=/dev/null \
 	  --training-filename=/dev/null
@@ -37,7 +33,6 @@ profile: lint FORCE
 	python -m cProfile -o forecast.prof main.py -n 1 \
 	  --funsor \
 	  --truncate=128 \
-	  --param-store-filename=/dev/null \
 	  --forecaster-filename=/dev/null \
 	  --forecast-filename=/dev/null \
 	  --training-filename=/dev/null
@@ -50,7 +45,6 @@ test2: lint FORCE
 	  --truncate=2 \
 	  --state-dim=2 \
 	  --guide-rank=2 \
-	  --param-store-filename=/dev/null \
 	  --forecaster-filename=/dev/null \
 	  --forecast-filename=/dev/null \
 	  --training-filename=/dev/null
@@ -64,7 +58,6 @@ test3: lint FORCE
 	  --truncate=2 \
 	  --state-dim=2 \
 	  --guide-rank=2 \
-	  --param-store-filename=/dev/null \
 	  --forecaster-filename=/dev/null \
 	  --forecast-filename=/dev/null \
 	  --training-filename=/dev/null
@@ -77,7 +70,6 @@ test4: lint FORCE
 	  --truncate=2 \
 	  --state-dim=2 \
 	  --guide-rank=2 \
-	  --param-store-filename=/dev/null \
 	  --forecaster-filename=/dev/null \
 	  --forecast-filename=/dev/null \
 	  --training-filename=/dev/null

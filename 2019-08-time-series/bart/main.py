@@ -36,7 +36,6 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="BART origin-destination forecast")
-    parser.add_argument("--param-store-filename", default="pyro_param_store.pkl")
     parser.add_argument("--forecaster-filename", default="forecaster.pkl")
     parser.add_argument("--forecast-filename", default="forecast.pkl")
     parser.add_argument("--training-filename", default="training.pkl")

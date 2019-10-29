@@ -54,7 +54,6 @@ def forecast_one(args, config):
         command.append(f'--num-steps={args.num_steps}')
         command.append(f'--forecast-hours={args.forecast_hours}')
         command.append(f'--num-samples={args.num_samples}')
-        command.append('--param-store-filename=/dev/null')
         command.append('--forecaster-filename=/dev/null')
         command.append('--training-filename=/dev/null')
         command.extend(config)
