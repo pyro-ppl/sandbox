@@ -103,8 +103,12 @@ def main(args):
         os.mkdir(args.results)
 
     configs = [
-        (),
-        ('--mean-field',),
+        # (),
+        # ('--mean-field',),
+        ('--state-dim=2', '--guide-rank=2'),
+        ('--state-dim=2', '--guide-rank=2', '--mean-field'),
+        ('--state-dim=4', '--guide-rank=4'),
+        ('--state-dim=4', '--guide-rank=4', '--mean-field'),
         # ('--funsor',),
         # ('--funsor', '--analytic-kl'),
     ]
