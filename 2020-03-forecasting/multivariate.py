@@ -13,6 +13,7 @@ import pyro
 import pyro.distributions as dist
 from pyro.contrib.forecast import ForecastingModel, backtest
 from pyro.contrib.timeseries import IndependentMaternGP, LinearlyCoupledMaternGP
+from pyro.nn import PyroParam
 
 from os.path import exists
 from urllib.request import urlopen
@@ -20,6 +21,41 @@ from urllib.request import urlopen
 logging.getLogger("pyro").setLevel(logging.DEBUG)
 logging.getLogger("pyro").handlers[0].setLevel(logging.DEBUG)
 
+
+class IndependentMaternStableProcess(IndependentMaternGP):
+    """
+    A IndependentMaternGP with (symmetric) stable observation noise.
+    """
+    def __init__(self, nu=1.5, dt=1.0, obs_dim=1,
+                 length_scale_init=None, kernel_scale_init=None,
+                 obs_noise_scale_init=None):
+        super().__init__(nu=nu, dt=dt, obs_dim=obs_dim, length_scale_init=length_scale_init,
+                         kernel_scale_init=kernel_scale_init, obs_noise_scale_init=obs_noise_scale_init)
+        self.min_stability = 1.5
+        self.stability = PyroParam(torch.tensor(1.99 - self.min_stability), constraint=constraints.positive)
+
+    def _get_init_dist(self):
+        return dist.MultivariateNormal(self.obs_matrix.new_zeros(self.obs_dim, self.kernel.state_dim),
+                                       self.kernel.stationary_covariance().squeeze(-3))
+
+    def _get_obs_dist(self):
+        return dist.Stable(self.min_stability + self.stability, 0.0,
+                           scale=self.obs_noise_scale.unsqueeze(-1).unsqueeze(-1)).to_event(1)
+
+    def _get_trans_dist(self, trans_matrix, stationary_covariance):
+        covar = stationary_covariance - torch.matmul(trans_matrix.transpose(-1, -2),
+                                                     torch.matmul(stationary_covariance, trans_matrix))
+        return dist.MultivariateNormal(covar.new_zeros(self.full_state_dim), covar)
+
+    def get_dist(self, duration=None):
+        trans_matrix, process_covar = self.kernel.transition_matrix_and_covariance(dt=self.dt)
+        trans_dist = dist.MultivariateNormal(self.obs_matrix.new_zeros(self.obs_dim, 1, self.kernel.state_dim),
+                                        process_covar.unsqueeze(-3))
+        trans_matrix = trans_matrix.unsqueeze(-3)
+        print("self.obs_matrix",self.obs_matrix.shape)
+
+        return dist.LinearHMM(self._get_init_dist(), trans_matrix, trans_dist,
+                              self.obs_matrix, self._get_obs_dist(), duration=duration)
 
 def preprocess(args):
     """
@@ -52,26 +88,24 @@ class Model(ForecastingModel):
         self.noise_model = noise_model
         if noise_model == "ind":
             self.noise_gp = IndependentMaternGP(obs_dim=14)
+        elif noise_model == "stable":
+            self.noise_gp = IndependentMaternStableProcess(obs_dim=14)
         else:
-            self.noise_gp = LinearlyCoupledMaternGP(obs_dim=14)
+            self.noise_gp = LinearlyCoupledMaternGP(obs_dim=14, num_gps=14)
 
     def model(self, zero_data, covariates):
         duration, dim = zero_data.shape
         assert dim == 14
 
-        #obs_noise_scale = pyro.param("obs_noise_scale", 0.1 * torch.ones(dim), constraint=constraints.positive)
-        #jump_scale = pyro.param("jump_scale", 0.1 * torch.ones(dim), constraint=constraints.positive)
-
-        #with self.time_plate:
-        #    jumps = pyro.sample("jumps", dist.Normal(0, jump_scale).to_event(1))
-        #prediction = jumps.cumsum(-2)
-
         noise_dist = self.noise_gp.get_dist(duration=zero_data.size(-2))
-        if self.noise_model == "ind":
+        if self.noise_model in ["ind", "stable"]:
             noise_dist = dist.IndependentHMM(noise_dist)
         self.predict(noise_dist, zero_data)
 
 def main(args):
+    print(args)
+    print("")
+
     pyro.enable_validation(__debug__)
     data, covariates = preprocess(args)
 
@@ -91,7 +125,7 @@ def main(args):
             "warm_start": True}
         return _forecaster_options
 
-    metrics = backtest(data, covariates, Model,
+    metrics = backtest(data, covariates, lambda: Model(noise_model=args.noise_model),
                        train_window=None,
                        min_train_window=args.train_window,
                        test_window=args.test_window,
@@ -110,12 +144,13 @@ def main(args):
 if __name__ == "__main__":
     #assert pyro.__version__.startswith('1.2.1')
     parser = argparse.ArgumentParser(description="Multivariate timeseries models")
-    parser.add_argument("--train-window", default=700, type=int)
+    parser.add_argument("--noise-model", default='stable', type=str, choices=['ind', 'lc', 'stable'])
+    parser.add_argument("--train-window", default=500, type=int)
     parser.add_argument("--test-window", default=1, type=int)
     parser.add_argument("--stride", default=1, type=int)
-    parser.add_argument("-n", "--num-steps", default=2, type=int)
+    parser.add_argument("-n", "--num-steps", default=800, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.01, type=float)
-    parser.add_argument("-lrd", "--learning-rate-decay", default=0.05, type=float)
+    parser.add_argument("-lrd", "--learning-rate-decay", default=0.01, type=float)
     parser.add_argument("--dct", action="store_true")
     parser.add_argument("--num-samples", default=100, type=int)
     parser.add_argument("--log-every", default=5, type=int)
