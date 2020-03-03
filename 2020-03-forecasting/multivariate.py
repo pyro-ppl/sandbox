@@ -47,13 +47,16 @@ def preprocess(args):
 
 
 class Model(ForecastingModel):
-    def __init__(self):
+    def __init__(self, noise_model="ind"):
         super().__init__()
-        self.noise_gp = LinearlyCoupledMaternGP(obs_dim=14)
-        #self.noise_gp = IndependentMaternGP(obs_dim=14)
+        self.noise_model = noise_model
+        if noise_model == "ind":
+            self.noise_gp = IndependentMaternGP(obs_dim=14)
+        else:
+            self.noise_gp = LinearlyCoupledMaternGP(obs_dim=14)
 
     def model(self, zero_data, covariates):
-        duration, dim = zero_data.shape[-2:]
+        duration, dim = zero_data.shape
         assert dim == 14
 
         #obs_noise_scale = pyro.param("obs_noise_scale", 0.1 * torch.ones(dim), constraint=constraints.positive)
@@ -64,30 +67,33 @@ class Model(ForecastingModel):
         #prediction = jumps.cumsum(-2)
 
         noise_dist = self.noise_gp.get_dist(duration=zero_data.size(-2))
+        if self.noise_model == "ind":
+            noise_dist = dist.IndependentHMM(noise_dist)
         self.predict(noise_dist, zero_data)
 
 def main(args):
     pyro.enable_validation(__debug__)
     data, covariates = preprocess(args)
 
-    noise_gp = IndependentMaternGP(obs_dim=14)
-    noise_dist = noise_gp.get_dist(duration=7)
-    print("noise_dist event_shape", noise_dist.event_shape, "batch_shape", noise_dist.batch_shape)
-
     print("data",data.shape)
     print("covariates",covariates.shape)
 
     # The backtest() function automatically trains and evaluates our model on
     # different windows of data.
-    forecaster_options = {
-        "num_steps": args.num_steps,
-        "learning_rate": args.learning_rate,
-        "learning_rate_decay": args.learning_rate_decay,
-        "log_every": args.log_every,
-        "dct_gradients": args.dct,
-    }
+    def forecaster_options(t0, t1, t2):
+        num_steps = args.num_steps if t1==args.train_window else 0
+        _forecaster_options = {
+            "num_steps": num_steps,
+            "learning_rate": args.learning_rate,
+            "learning_rate_decay": args.learning_rate_decay,
+            "log_every": args.log_every,
+            "dct_gradients": args.dct,
+            "warm_start": True}
+        return _forecaster_options
+
     metrics = backtest(data, covariates, Model,
-                       train_window=args.train_window,
+                       train_window=None,
+                       min_train_window=args.train_window,
                        test_window=args.test_window,
                        stride=args.stride,
                        num_samples=args.num_samples,
@@ -98,17 +104,16 @@ def main(args):
         mean = np.mean(values)
         std = np.std(values)
         print("{} = {:0.3g} +- {:0.3g}".format(name, mean, std))
-        print("values", values)
     return metrics
 
 
 if __name__ == "__main__":
     #assert pyro.__version__.startswith('1.2.1')
     parser = argparse.ArgumentParser(description="Multivariate timeseries models")
-    parser.add_argument("--train-window", default=740, type=int)
+    parser.add_argument("--train-window", default=700, type=int)
     parser.add_argument("--test-window", default=1, type=int)
     parser.add_argument("--stride", default=1, type=int)
-    parser.add_argument("-n", "--num-steps", default=301, type=int)
+    parser.add_argument("-n", "--num-steps", default=2, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.01, type=float)
     parser.add_argument("-lrd", "--learning-rate-decay", default=0.05, type=float)
     parser.add_argument("--dct", action="store_true")
