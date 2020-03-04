@@ -14,6 +14,8 @@ import pyro.distributions as dist
 from pyro.contrib.forecast import ForecastingModel, backtest
 from pyro.contrib.timeseries import IndependentMaternGP, LinearlyCoupledMaternGP
 from pyro.nn import PyroParam
+from pyro.infer.reparam import SymmetricStableReparam
+from pyro.infer.reparam import LinearHMMReparam
 
 from os.path import exists
 from urllib.request import urlopen
@@ -52,8 +54,6 @@ class IndependentMaternStableProcess(IndependentMaternGP):
         trans_dist = dist.MultivariateNormal(self.obs_matrix.new_zeros(self.obs_dim, 1, self.kernel.state_dim),
                                         process_covar.unsqueeze(-3))
         trans_matrix = trans_matrix.unsqueeze(-3)
-        print("self.obs_matrix",self.obs_matrix.shape)
-
         return dist.LinearHMM(self._get_init_dist(), trans_matrix, trans_dist,
                               self.obs_matrix, self._get_obs_dist(), duration=duration)
 
@@ -100,7 +100,12 @@ class Model(ForecastingModel):
         noise_dist = self.noise_gp.get_dist(duration=zero_data.size(-2))
         if self.noise_model in ["ind", "stable"]:
             noise_dist = dist.IndependentHMM(noise_dist)
-        self.predict(noise_dist, zero_data)
+
+        rep = LinearHMMReparam(obs=SymmetricStableReparam())
+        with pyro.poutine.reparam(config={"residual": rep}):
+            self.predict(noise_dist, zero_data)
+
+        #self.predict(noise_dist, zero_data)
 
 def main(args):
     print(args)
