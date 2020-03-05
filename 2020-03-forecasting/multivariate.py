@@ -12,11 +12,13 @@ import torch.distributions.constraints as constraints
 import pyro
 import pyro.distributions as dist
 from pyro.contrib.forecast import ForecastingModel, backtest
-from pyro.contrib.timeseries import IndependentMaternGP, LinearlyCoupledMaternGP
+from pyro.contrib.timeseries import IndependentMaternGP
+from pyro.contrib.timeseries import LinearlyCoupledMaternGP
 from pyro.nn import PyroParam
 from pyro.infer.reparam import SymmetricStableReparam
 from pyro.infer.reparam import LinearHMMReparam
 from pyro.poutine import reparam
+from pyro.distributions import MultivariateNormal
 
 from os.path import exists
 from urllib.request import urlopen
@@ -32,26 +34,30 @@ class IndependentMaternStableProcess(IndependentMaternGP):
     def __init__(self, nu=1.5, dt=1.0, obs_dim=1,
                  length_scale_init=None, kernel_scale_init=None,
                  obs_noise_scale_init=None):
-        super().__init__(nu=nu, dt=dt, obs_dim=obs_dim, length_scale_init=length_scale_init,
-                         kernel_scale_init=kernel_scale_init, obs_noise_scale_init=obs_noise_scale_init)
-        # self.stability = PyroParam(torch.tensor(1.99 - self.min_stability), constraint=constraints.positive)
+        super().__init__(nu=nu, dt=dt, obs_dim=obs_dim,
+                         length_scale_init=length_scale_init,
+                         kernel_scale_init=kernel_scale_init,
+                         obs_noise_scale_init=obs_noise_scale_init)
+        self.stability = PyroParam(torch.tensor(1.95),
+                                   constraint=constraints.interval(1.50, 1.99))
+        self.skew = 0.0
 
     def _get_init_dist(self):
-        return dist.MultivariateNormal(self.obs_matrix.new_zeros(self.obs_dim, self.kernel.state_dim),
-                                       self.kernel.stationary_covariance().squeeze(-3))
+        cov = self.kernel.stationary_covariance().squeeze(-3)
+        return MultivariateNormal(self.obs_matrix.new_zeros(self.obs_dim, self.kernel.state_dim), cov)
 
     def _get_obs_dist(self):
-        return dist.Stable(1.90, 0.0,
-                           scale=self.obs_noise_scale.unsqueeze(-1).unsqueeze(-1)).to_event(1)
+        scale = self.obs_noise_scale.unsqueeze(-1).unsqueeze(-1)
+        return dist.Stable(self.stability, self.skew, scale=scale).to_event(1)
 
     def _get_trans_dist(self, trans_matrix, stationary_covariance):
         covar = stationary_covariance - torch.matmul(trans_matrix.transpose(-1, -2),
                                                      torch.matmul(stationary_covariance, trans_matrix))
-        return dist.MultivariateNormal(covar.new_zeros(self.full_state_dim), covar)
+        return MultivariateNormal(covar.new_zeros(self.full_state_dim), covar)
 
     def get_dist(self, duration=None):
         trans_matrix, process_covar = self.kernel.transition_matrix_and_covariance(dt=self.dt)
-        trans_dist = dist.MultivariateNormal(self.obs_matrix.new_zeros(self.obs_dim, 1, self.kernel.state_dim),
+        trans_dist = MultivariateNormal(self.obs_matrix.new_zeros(self.obs_dim, 1, self.kernel.state_dim),
                                         process_covar.unsqueeze(-3))
         trans_matrix = trans_matrix.unsqueeze(-3)
         return dist.LinearHMM(self._get_init_dist(), trans_matrix, trans_dist,
@@ -102,8 +108,8 @@ class Model(ForecastingModel):
         if self.noise_model in ["ind", "stable"]:
             noise_dist = dist.IndependentHMM(noise_dist)
 
-        config = {"residual": LinearHMMReparam(obs=SymmetricStableReparam())} if self.noise_model == "stable" \
-                 else {}
+        config = {} if self.noise_model != "stable" else \
+                 {"residual": LinearHMMReparam(obs=SymmetricStableReparam())}
 
         with reparam(config=config):
             self.predict(noise_dist, zero_data)
@@ -122,9 +128,9 @@ def main(args):
     print("covariates:", covariates.shape)
 
     def forecaster_options(t0, t1, t2):
-        num_steps = args.num_steps if t1==args.train_window else 50
-        lr = args.learning_rate if t1==args.train_window else 0.1 * args.learning_rate
-        lrd = args.learning_rate_decay if t1==args.train_window else 1.0
+        num_steps = args.num_steps if t1 == args.train_window else 50
+        lr = args.learning_rate if t1 == args.train_window else 0.1 * args.learning_rate
+        lrd = args.learning_rate_decay if t1 == args.train_window else 1.0
         _forecaster_options = {"num_steps": num_steps, "learning_rate": lr,
                                "learning_rate_decay": lrd, "log_every": args.log_every,
                                "dct_gradients": args.dct, "warm_start": True,
@@ -150,7 +156,6 @@ def main(args):
 
 
 if __name__ == "__main__":
-    #assert pyro.__version__.startswith('1.2.1')
     parser = argparse.ArgumentParser(description="Multivariate timeseries models")
     parser.add_argument("--noise-model", default='stable', type=str, choices=['ind', 'lc', 'stable'])
     parser.add_argument("--train-window", default=600, type=int)
