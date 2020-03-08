@@ -4,6 +4,7 @@
 import argparse
 import logging
 
+import math
 import numpy as np
 
 import torch
@@ -15,7 +16,7 @@ from pyro.contrib.forecast import ForecastingModel, backtest
 from pyro.contrib.timeseries import IndependentMaternGP
 from pyro.contrib.timeseries import LinearlyCoupledMaternGP
 from pyro.nn import PyroParam
-from pyro.infer.reparam import SymmetricStableReparam
+from pyro.infer.reparam import SymmetricStableReparam, LatentStableReparam
 from pyro.infer.reparam import LinearHMMReparam
 from pyro.poutine import reparam
 from pyro.distributions import MultivariateNormal
@@ -25,15 +26,19 @@ from urllib.request import urlopen
 
 logging.getLogger("pyro").setLevel(logging.DEBUG)
 logging.getLogger("pyro").handlers[0].setLevel(logging.DEBUG)
-
+root_two = math.sqrt(2.0)
 
 class IndependentMaternStableProcess(IndependentMaternGP):
     """
-    A IndependentMaternGP with (symmetric) stable observation noise.
+    A IndependentMaternGP with symmetric stable observation noise
+    or symmetric stable transition noise.
     """
-    def __init__(self, nu=1.5, dt=1.0, obs_dim=1,
+    def __init__(self, nu=0.5, dt=1.0, obs_dim=1,
                  length_scale_init=None, kernel_scale_init=None,
-                 obs_noise_scale_init=None):
+                 obs_noise_scale_init=None, stable_noise="obs"):
+        self.stable_noise = stable_noise
+        assert stable_noise in ['obs', 'trans']
+        print("stable_noise", stable_noise)
         super().__init__(nu=nu, dt=dt, obs_dim=obs_dim,
                          length_scale_init=length_scale_init,
                          kernel_scale_init=kernel_scale_init,
@@ -48,17 +53,18 @@ class IndependentMaternStableProcess(IndependentMaternGP):
 
     def _get_obs_dist(self):
         scale = self.obs_noise_scale.unsqueeze(-1).unsqueeze(-1)
-        return dist.Stable(self.stability, self.skew, scale=scale).to_event(1)
-
-    def _get_trans_dist(self, trans_matrix, stationary_covariance):
-        covar = stationary_covariance - torch.matmul(trans_matrix.transpose(-1, -2),
-                                                     torch.matmul(stationary_covariance, trans_matrix))
-        return MultivariateNormal(covar.new_zeros(self.full_state_dim), covar)
+        if self.stable_noise == "obs":
+            return dist.Stable(self.stability, self.skew, scale=scale / root_two).to_event(1)
+        else:
+            return dist.Normal(0.0, scale=scale).to_event(1)
 
     def get_dist(self, duration=None):
         trans_matrix, process_covar = self.kernel.transition_matrix_and_covariance(dt=self.dt)
-        trans_dist = MultivariateNormal(self.obs_matrix.new_zeros(self.obs_dim, 1, self.kernel.state_dim),
-                                        process_covar.unsqueeze(-3))
+        if self.stable_noise == "trans":
+            trans_dist = dist.Stable(self.stability, self.skew, scale=process_covar.sqrt() / root_two).to_event(1)
+        else:
+            trans_dist = MultivariateNormal(self.obs_matrix.new_zeros(self.obs_dim, 1, self.kernel.state_dim),
+                                            process_covar.unsqueeze(-3))
         trans_matrix = trans_matrix.unsqueeze(-3)
         return dist.LinearHMM(self._get_init_dist(), trans_matrix, trans_dist,
                               self.obs_matrix, self._get_obs_dist(), duration=duration)
@@ -95,8 +101,8 @@ class Model(ForecastingModel):
         self.noise_model = noise_model
         if noise_model == "ind":
             self.noise_gp = IndependentMaternGP(obs_dim=14)
-        elif noise_model == "stable":
-            self.noise_gp = IndependentMaternStableProcess(obs_dim=14)
+        elif noise_model in ["stable-obs", "stable-trans"]:
+            self.noise_gp = IndependentMaternStableProcess(obs_dim=14, stable_noise=noise_model[7:])
         else:
             self.noise_gp = LinearlyCoupledMaternGP(obs_dim=14, num_gps=14)
 
@@ -105,11 +111,15 @@ class Model(ForecastingModel):
         assert dim == 14
 
         noise_dist = self.noise_gp.get_dist(duration=zero_data.size(-2))
-        if self.noise_model in ["ind", "stable"]:
+        if self.noise_model in ["ind", "stable-obs", "stable-trans"]:
             noise_dist = dist.IndependentHMM(noise_dist)
 
-        config = {} if self.noise_model != "stable" else \
-                 {"residual": LinearHMMReparam(obs=SymmetricStableReparam())}
+        if self.noise_model == "stable-obs":
+            config = {"residual": LinearHMMReparam(obs=SymmetricStableReparam())}
+        elif self.noise_model == "stable-trans":
+            config = {"residual": LinearHMMReparam(trans=SymmetricStableReparam())}
+        else:
+            config = {}
 
         with reparam(config=config):
             self.predict(noise_dist, zero_data)
@@ -157,7 +167,8 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multivariate timeseries models")
-    parser.add_argument("--noise-model", default='stable', type=str, choices=['ind', 'lc', 'stable'])
+    parser.add_argument("--noise-model", default='stable-obs', type=str,
+                        choices=['ind', 'lc', 'stable-obs', 'stable-trans'])
     parser.add_argument("--train-window", default=600, type=int)
     parser.add_argument("--test-window", default=1, type=int)
     parser.add_argument("--stride", default=1, type=int)
