@@ -73,7 +73,6 @@ class IndependentMaternStableProcess(IndependentMaternGP):
             trans_dist = MultivariateNormal(self.obs_matrix.new_zeros(self.obs_dim, 1, self.kernel.state_dim),
                                             process_covar.unsqueeze(-3))
         trans_matrix = trans_matrix.unsqueeze(-3)
-        import pdb; pdb.set_trace()
         return dist.LinearHMM(self._get_init_dist(), trans_matrix, trans_dist,
                               self.obs_matrix, self._get_obs_dist(), duration=duration)
 
@@ -109,7 +108,8 @@ class Model(ForecastingModel):
             self.config = {"residual": LinearHMMReparam(obs=SymmetricStableReparam())}
 
     def model(self, zero_data, covariates):
-        noise_dist = self.noise_gp.get_dist(duration=zero_data.size(-2))
+        with pyro.plate("indep_gps", zero_data.size(-1), dim=-2):
+            noise_dist = self.noise_gp.get_dist(duration=zero_data.size(-2))
         if self.noise_model in ["gaussian", "stable-obs"]:
             noise_dist = dist.IndependentHMM(noise_dist)
 
