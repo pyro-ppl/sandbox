@@ -46,21 +46,22 @@ class IndependentMaternStableProcess(IndependentMaternGP):
                          kernel_scale_init=kernel_scale_init,
                          obs_noise_scale_init=obs_noise_scale_init)
         if self.latent_globals:
-            self.kernel.length_scale = PyroSample(LogNormal(2.0, 2 * torch.ones(self.obs_dim)).to_event(1))
-            self.kernel.kernel_scale = PyroSample(LogNormal(0.0, 2 * torch.ones(self.obs_dim)).to_event(1))
-            self.obs_noise_scale = PyroSample(LogNormal(-2.0, 2 * torch.ones(self.obs_dim)).to_event(1))
-            self.stability = PyroSample(Uniform(1.01, 1.99 * torch.ones(1)).to_event(1))
+            self.kernel.length_scale = PyroSample(LogNormal(2.0, 2.0))
+            self.kernel.kernel_scale = PyroSample(LogNormal(0.0, 2.0))
+            self.obs_noise_scale = PyroSample(LogNormal(-2.0, 2.0))
+            self.stability = PyroSample(Uniform(1.5, 1.99))
         else:
-           self.stability = PyroParam(torch.tensor(1.95), constraint=constraints.interval(1.01, 1.99))
+           self.stability = PyroParam(torch.tensor(1.95), constraint=constraints.interval(1.5, 1.99))
 
     def _get_init_dist(self):
-        cov = self.kernel.stationary_covariance().squeeze(-3)
+        cov = self.kernel.stationary_covariance()
         return MultivariateNormal(self.obs_matrix.new_zeros(self.obs_dim, self.kernel.state_dim), cov)
 
     def _get_obs_dist(self):
         scale = self.obs_noise_scale.unsqueeze(-1).unsqueeze(-1)
+        stability = self.stability.unsqueeze(-1).unsqueeze(-1)
         if self.stable_noise == "obs":
-            return dist.Stable(self.stability, self.skew, scale=scale).to_event(1)
+            return dist.Stable(stability, self.skew, scale=scale).to_event(1)
         else:
             return dist.Normal(0.0, scale=scale).to_event(1)
 
@@ -72,13 +73,15 @@ class IndependentMaternStableProcess(IndependentMaternGP):
             trans_dist = MultivariateNormal(self.obs_matrix.new_zeros(self.obs_dim, 1, self.kernel.state_dim),
                                             process_covar.unsqueeze(-3))
         trans_matrix = trans_matrix.unsqueeze(-3)
+        import pdb; pdb.set_trace()
         return dist.LinearHMM(self._get_init_dist(), trans_matrix, trans_dist,
                               self.obs_matrix, self._get_obs_dist(), duration=duration)
 
 
-def get_data(shock=1.0, shock_times = [43, 91, 137], args=None):
+def get_data(shock=1.0, shock_times = [11, 15, 7], args=None):
+#def get_data(shock=1.0, shock_times = [13, 55, 77], args=None):
     torch.manual_seed(0)
-    data = torch.cos(0.1 * torch.arange(201).float()).unsqueeze(-1)
+    data = torch.cos(0.1 * torch.arange(args.train_window + 1).float()).unsqueeze(-1)
     data += 0.05 * torch.randn(data.shape)
     if args.mode == "jump":
         print("MODE JUMP")
@@ -110,9 +113,8 @@ class Model(ForecastingModel):
         if self.noise_model in ["gaussian", "stable-obs"]:
             noise_dist = dist.IndependentHMM(noise_dist)
 
-        prediction = torch.zeros(noise_dist.event_shape)
         with reparam(config=self.config):
-            self.predict(noise_dist, prediction)
+            self.predict(noise_dist, zero_data)
 
 
 def main(args):
@@ -129,12 +131,14 @@ def main(args):
         return {"num_steps": num_steps, "learning_rate": lr,
                 "learning_rate_decay": lrd, "log_every": args.log_every,
                 "dct_gradients": args.dct, "warm_start": False,
-                "clip_norm": args.clip_norm}
+                "clip_norm": args.clip_norm,
+                "vectorize_particles": 1,
+                "num_particles": 3}
 
     def hmc_forecaster_options(t0, t1, t2):
-        return {"max_tree_depth": 1,
-                "num_warmup": 10,
-                "num_samples": 20}
+        return {"max_tree_depth": args.max_depth,
+                "num_warmup": args.num_warmup,
+                "num_samples": args.num_samples}
 
     results = {}
 
@@ -152,9 +156,13 @@ def main(args):
                            min_train_window=args.train_window,
                            test_window=args.test_window,
                            stride=args.stride,
-                           num_samples=args.num_samples,
+                           num_samples=args.num_eval_samples,
                            forecaster_options=svi_forecaster_options if args.inference=='svi' else hmc_forecaster_options,
                            forecaster_fn=Forecaster if args.inference=='svi' else HMCForecaster)
+
+        #for name, value in pyro.get_param_store().named_parameters():
+        #    if value.numel() == 1:
+        #        print("[{}]".format(name), value)
 
         if not args.latent_globals:
             length_scale = pyro.param("noise_gp.kernel.length_scale").item()
@@ -190,16 +198,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multivariate timeseries models")
     parser.add_argument("--noise-model", default='stable-obs', type=str,
                         choices=['gaussian', 'stable-obs'])
-    parser.add_argument("--train-window", default=200, type=int)
+    parser.add_argument("--train-window", default=50, type=int)
     parser.add_argument("--test-window", default=1, type=int)
     parser.add_argument("--stride", default=1, type=int)
+    parser.add_argument("--num-warmup", default=200, type=int)
+    parser.add_argument("--num-samples", default=300, type=int)
+    parser.add_argument("--max-depth", default=6, type=int)
     parser.add_argument("--clip-norm", default=10.0, type=float)
     parser.add_argument("-n", "--num-steps", default=1200, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.03, type=float)
     parser.add_argument("-lrd", "--learning-rate-decay", default=0.003, type=float)
     parser.add_argument("--dct", action="store_true")
     parser.add_argument("--latent-globals", action="store_true")
-    parser.add_argument("--num-samples", default=99, type=int)
+    parser.add_argument("--num-eval-samples", default=300, type=int)
     parser.add_argument("--log-every", default=100, type=int)
     parser.add_argument("--seed", default=0, type=int)
     parser.add_argument("--mode", default="jump", type=str, choices=['jump', 'shift'])
