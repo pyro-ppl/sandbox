@@ -200,6 +200,7 @@ def main(**args):
         log("{} = {:0.4g} +- {:0.4g}".format(name, mean, std))
 
     results['pred'] = metrics[0]['pred'].data.numpy()[:, 0, :, 0]
+    results['samples'] = metrics[0]['samples']
 
     """
     if args['plot']:
@@ -224,7 +225,7 @@ def main(**args):
         plt.savefig('plot.{}.{:.2f}.pdf'.format(args.noise_model, shock))
     """
 
-    with open(log_file[:-4] + '.pkl', 'wb') as f:
+    with open(args['log_dir'] + '/' + log_file[:-4] + '.pkl', 'wb') as f:
         pickle.dump(results, f, protocol=2)
 
 

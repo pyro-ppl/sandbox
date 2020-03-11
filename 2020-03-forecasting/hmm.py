@@ -1,0 +1,190 @@
+# Copyright Contributors to the Pyro project.
+# SPDX-License-Identifier: Apache-2.0
+
+import argparse
+import uuid
+
+import numpy as np
+import math
+import pandas as pd
+
+import torch
+import torch.distributions.constraints as constraints
+
+import pyro
+import pyro.distributions as dist
+from pyro.contrib.forecast import ForecastingModel, backtest, HMCForecaster, Forecaster
+from pyro.contrib.timeseries import IndependentMaternGP
+from pyro.nn import PyroParam, PyroSample, PyroModule
+from pyro.infer.reparam import SymmetricStableReparam, LatentStableReparam, StudentTReparam
+from pyro.infer.reparam import LinearHMMReparam
+from pyro.poutine import reparam
+from pyro.distributions import MultivariateNormal, LogNormal, Uniform, StudentT
+
+from os.path import exists
+from urllib.request import urlopen
+
+import pickle
+from dataloader import get_data as get_raw_data
+from logger import get_logger
+
+
+root_two = math.sqrt(2.0)
+
+
+class StableLinearHMM(PyroModule):
+    def __init__(self, obs_dim=1, trans_noise="gaussian", obs_noise="gaussian", state_dim=3):
+        self.trans_noise = trans_noise
+        self.obs_noise = obs_noise
+        self.state_dim = state_dim
+        self.obs_dim = obs_dim
+        assert trans_noise in ['gaussian', 'stable']
+        assert obs_noise in ['gaussian', 'stable']
+        super().__init__()
+        self.obs_noise_scale = PyroParam(0.2 * torch.tensor(obs_dim), constraint=constraints.positive)
+        self.trans_noise_scale = PyroParam(0.2 * torch.tensor(state_dim), constraint=constraints.positive)
+        self.trans_matrix = PyroParam(0.3 * torch.randn(state_dim, state_dim))
+        self.obs_matrix = PyroParam(0.3 * torch.randn(state_dim, obs_dim))
+        if trans_noise == "stable" or obs_noise == "stable":
+            self.stability = PyroParam(torch.tensor(1.95), constraint=constraints.interval(1.01, 1.99))
+
+    def _get_init_dist(self):
+        return dist.Normal(torch.zeros(self.state_dim), torch.ones(self.state_dim)).to_event(1)
+
+    def _get_obs_dist(self):
+        if self.obs_noise == "stable":
+            return dist.Stable(self.stability, torch.zeros(self.obs_dim), scale=self.obs_noise_scale / root_two).to_event(1)
+        else:
+            return dist.Normal(torch.zeros(self.obs_dim), scale=self.obs_noise_scale).to_event(1)
+
+    def _get_trans_dist(self):
+        if self.trans_noise == "stable":
+            return dist.Stable(self.stability, torch.zeros(self.state_dim), scale=self.trans_noise_scale / root_two).to_event(1)
+        else:
+            return dist.Normal(torch.zeros(self.state_dim), scale=self.trans_noise_scale).to_event(1)
+
+    def get_dist(self, duration=None):
+        return dist.LinearHMM(self._get_init_dist(),
+                              self.trans_matrix, self._get_trans_dist(),
+                              self.obs_matrix, self._get_obs_dist(), duration=duration)
+
+
+def get_data(args=None, num_windows=2):
+    data, _, _, _ = get_raw_data(args['dataset'], args['data_dir'])
+    to_keep = args['train_window'] + num_windows * args['test_window']
+    assert to_keep <= data.size(0)
+
+    data = data[:to_keep].float()
+
+    data_mean = data.mean(0)
+    data -= data_mean
+    data_std = data.std(0)
+    data /= data_std
+
+    covariates = torch.zeros(data.size(0), 0)
+
+    return data.cuda(), covariates.cuda()
+
+
+class Model(ForecastingModel):
+    def __init__(self, trans_noise="gaussian", obs_noise="gaussian", state_dim=3, obs_dim=14):
+        super().__init__()
+        self.trans_noise = trans_noise
+        self.obs_noise = obs_noise
+        self.hmm = StableLinearHMM(obs_dim=obs_dim, trans_noise=trans_noise, obs_noise=obs_noise, state_dim=state_dim)
+        if trans_noise == "gaussian" and obs_noise == "gaussian":
+            self.config = {"residual": LinearHMMReparam()}
+        elif trans_noise == "stable" and obs_noise == "gaussian":
+            self.config = {"residual": LinearHMMReparam(trans=SymmetricStableReparam())}
+        elif trans_noise == "gaussian" and obs_noise == "stable":
+            self.config = {"residual": LinearHMMReparam(obs=SymmetricStableReparam())}
+        elif trans_noise == "stable" and obs_noise == "stable":
+            self.config = {"residual": LinearHMMReparam(obs=SymmetricStableReparam(), trans=SymmetricStableReparam())}
+
+    def model(self, zero_data, covariates):
+        hmm = self.hmm.get_dist(duration=zero_data.size(-2))
+
+        with reparam(config=self.config):
+            self.predict(hmm, zero_data)
+
+
+def main(**args):
+    log_file = '{}.{}.{}.tt_{}_{}.sd_{}.nst_{}.cn_{:.1f}.lr_{:.2f}.lrd_{:.2f}.{}.log'
+    log_file = log_file.format(args['dataset'], args['trans_noise'], args['obs_noise'],
+                               args['train_window'], args['test_window'],
+                               args['state_dim'], args['num_steps'],
+                               args['clip_norm'], args['learning_rate'], args['learning_rate_decay'],
+                               str(uuid.uuid4())[0:4])
+
+    log = get_logger(args['log_dir'], log_file, use_local_logger=False)
+
+    torch.set_default_tensor_type('torch.cuda.FloatTensor')
+    log(args)
+    log("")
+
+    pyro.enable_validation(__debug__)
+    pyro.set_rng_seed(args['seed'])
+
+    def svi_forecaster_options(t0, t1, t2):
+        num_steps = args['num_steps']# if t1 == args.train_window else 200
+        lr = args['learning_rate'] # if t1 == args.train_window else 0.1 * args.learning_rate
+        lrd = args['learning_rate_decay']# if t1 == args.train_window else 0.1
+        return {"num_steps": num_steps, "learning_rate": lr,
+                "learning_rate_decay": lrd, "log_every": args['log_every'],
+                "dct_gradients": False, "warm_start": False,
+                "clip_norm": args['clip_norm'],
+                "vectorize_particles": False,
+                "num_particles": 1}
+
+    results = {}
+
+    data, covariates = get_data(args=args)
+    print("data, covariates", data.shape, covariates.shape)
+
+    results = {}
+
+    metrics = backtest(data, covariates,
+                       lambda: Model(trans_noise=args['trans_noise'], state_dim=args['state_dim'],
+                                     obs_noise=args['obs_noise'], obs_dim=data.size(-1)).cuda(),
+                       train_window=None,
+                       min_train_window=args['train_window'],
+                       test_window=args['test_window'],
+                       stride=args['stride'],
+                       num_samples=args['num_eval_samples'],
+                       forecaster_options=svi_forecaster_options,
+                       forecaster_fn=Forecaster)
+
+    log("### EVALUATION ###")
+    for name in ["mae", "rmse", "crps"]:
+        values = [m[name] for m in metrics]
+        mean, std = np.mean(values), np.std(values)
+        results[name] = mean
+        results[name + '_std'] = std
+        log("{} = {:0.4g} +- {:0.4g}".format(name, mean, std))
+
+    with open(args['log_dir'] + '/' + log_file[:-4] + '.pkl', 'wb') as f:
+        pickle.dump(results, f, protocol=2)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Multivariate timeseries models")
+    parser.add_argument("--trans-noise", default='stable', type=str, choices=['gaussian', 'stable'])
+    parser.add_argument("--obs-noise", default='stable', type=str, choices=['gaussian', 'stable'])
+    parser.add_argument("--dataset", default='krakeu', type=str)
+    parser.add_argument("--data-dir", default='./data/', type=str)
+    parser.add_argument("--log-dir", default='./logs/', type=str)
+    parser.add_argument("--train-window", default=300, type=int)
+    parser.add_argument("--test-window", default=5, type=int)
+    parser.add_argument("--stride", default=5, type=int)
+    parser.add_argument("--num-eval-samples", default=2000, type=int)
+    parser.add_argument("--clip-norm", default=20.0, type=float)
+    parser.add_argument("-n", "--num-steps", default=10, type=int)
+    parser.add_argument("-d", "--state-dim", default=3, type=int)
+    parser.add_argument("-lr", "--learning-rate", default=0.05, type=float)
+    parser.add_argument("-lrd", "--learning-rate-decay", default=0.005, type=float)
+    parser.add_argument("--plot", action="store_true")
+    parser.add_argument("--log-every", default=3, type=int)
+    parser.add_argument("--seed", default=0, type=int)
+    args = parser.parse_args()
+
+    main(**vars(args))
