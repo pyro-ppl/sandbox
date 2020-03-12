@@ -29,11 +29,12 @@ class StableLinearHMM(PyroModule):
         self.obs_noise = obs_noise
         self.state_dim = state_dim
         self.obs_dim = obs_dim
+        print("Initilized StableLinearHMM with state_dim = {}, obs_dim = {}".format(state_dim, obs_dim))
         assert trans_noise in ['gaussian', 'stable', 'student', 'skew']
         assert obs_noise in ['gaussian', 'stable', 'student', 'skew']
         super().__init__()
-        self.obs_noise_scale = PyroParam(0.2 * torch.tensor(obs_dim), constraint=constraints.positive)
-        self.trans_noise_scale = PyroParam(0.2 * torch.tensor(state_dim), constraint=constraints.positive)
+        self.obs_noise_scale = PyroParam(0.2 * torch.ones(obs_dim), constraint=constraints.positive)
+        self.trans_noise_scale = PyroParam(0.2 * torch.ones(state_dim), constraint=constraints.positive)
         self.trans_matrix = PyroParam(0.3 * torch.randn(state_dim, state_dim))
         self.obs_matrix = PyroParam(0.3 * torch.randn(state_dim, obs_dim))
         if trans_noise in ["stable", "skew"]:
@@ -161,11 +162,7 @@ def main(**args):
                 "vectorize_particles": False,
                 "num_particles": 1}
 
-    results = {}
-
     data, covariates = get_data(args=args)
-    print("data, covariates", data.shape, covariates.shape)
-
     results = {}
 
     metrics = backtest(data, covariates,
@@ -199,6 +196,14 @@ def main(**args):
 
     pred = np.stack([m['pred'].data.cpu().numpy() for m in metrics])
     results['pred'] = pred
+
+    for name, value in pyro.get_param_store().items():
+        if value.numel() == 1:
+            results[name] = value.item()
+            print("[{}]".format(name), value.item())
+        elif value.numel() < 10:
+            results[name] = value.data.cpu().numpy()
+            print("[{}]".format(name), value.data.cpu().numpy())
 
     with open(args['log_dir'] + '/' + log_file[:-4] + '.pkl', 'wb') as f:
         pickle.dump(results, f, protocol=2)
