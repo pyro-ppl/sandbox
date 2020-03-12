@@ -12,7 +12,7 @@ import torch.distributions.constraints as constraints
 import pyro
 from pyro.contrib.forecast import ForecastingModel, backtest, Forecaster
 from pyro.nn import PyroParam, PyroModule
-from pyro.infer.reparam import SymmetricStableReparam, StudentTReparam, LinearHMMReparam
+from pyro.infer.reparam import SymmetricStableReparam, StudentTReparam, LinearHMMReparam, StableReparam
 from pyro.distributions import StudentT, Stable, Normal, LinearHMM
 
 import pickle
@@ -29,19 +29,23 @@ class StableLinearHMM(PyroModule):
         self.obs_noise = obs_noise
         self.state_dim = state_dim
         self.obs_dim = obs_dim
-        assert trans_noise in ['gaussian', 'stable', 'student']
-        assert obs_noise in ['gaussian', 'stable', 'student']
+        assert trans_noise in ['gaussian', 'stable', 'student', 'skew']
+        assert obs_noise in ['gaussian', 'stable', 'student', 'skew']
         super().__init__()
         self.obs_noise_scale = PyroParam(0.2 * torch.tensor(obs_dim), constraint=constraints.positive)
         self.trans_noise_scale = PyroParam(0.2 * torch.tensor(state_dim), constraint=constraints.positive)
         self.trans_matrix = PyroParam(0.3 * torch.randn(state_dim, state_dim))
         self.obs_matrix = PyroParam(0.3 * torch.randn(state_dim, obs_dim))
-        if trans_noise == "stable":
+        if trans_noise in ["stable", "skew"]:
             self.trans_stability = PyroParam(torch.tensor(1.95), constraint=constraints.interval(1.01, 1.99))
+            if trans_noise == "skew":
+                self.trans_skew = PyroParam(torch.tensor(0.0), constraint=constraints.interval(-0.99, 0.99))
         elif trans_noise == "student":
             self.trans_nu = PyroParam(torch.tensor(5.0), constraint=constraints.interval(1.01, 30.0))
-        if obs_noise == "stable":
+        if obs_noise in ["stable", "skew"]:
             self.obs_stability = PyroParam(torch.tensor(1.95), constraint=constraints.interval(1.01, 1.99))
+            if obs_noise == "skew":
+                self.obs_skew = PyroParam(torch.tensor(0.0), constraint=constraints.interval(-0.99, 0.99))
         elif obs_noise == "student":
             self.obs_nu = PyroParam(torch.tensor(5.0), constraint=constraints.interval(1.01, 30.0))
 
@@ -52,6 +56,9 @@ class StableLinearHMM(PyroModule):
         if self.obs_noise == "stable":
             return Stable(self.obs_stability, torch.zeros(self.obs_dim),
                           scale=self.obs_noise_scale / root_two).to_event(1)
+        elif self.obs_noise == "skew":
+            return Stable(self.obs_stability, self.obs_skew * torch.ones(self.obs_dim),
+                          scale=self.obs_noise_scale / root_two).to_event(1)
         elif self.obs_noise == "student":
             return StudentT(self.obs_nu, torch.zeros(self.obs_dim), self.obs_noise_scale).to_event(1)
         else:
@@ -60,6 +67,9 @@ class StableLinearHMM(PyroModule):
     def _get_trans_dist(self):
         if self.trans_noise == "stable":
             return Stable(self.trans_stability, torch.zeros(self.state_dim),
+                          scale=self.trans_noise_scale / root_two).to_event(1)
+        elif self.trans_noise == "skew":
+            return Stable(self.trans_stability, self.trans_skew * torch.ones(self.state_dim),
                           scale=self.trans_noise_scale / root_two).to_event(1)
         elif self.trans_noise == "student":
             return StudentT(self.trans_nu, torch.zeros(self.state_dim), self.trans_noise_scale).to_event(1)
@@ -109,6 +119,12 @@ class Model(ForecastingModel):
             self.config = {"residual": LinearHMMReparam(trans=StudentTReparam())}
         elif trans_noise == "student" and obs_noise == "student":
             self.config = {"residual": LinearHMMReparam(obs=StudentTReparam(), trans=StudentTReparam())}
+        elif trans_noise == "skew" and obs_noise == "skew":
+            self.config = {"residual": LinearHMMReparam(obs=StableReparam(), trans=StableReparam())}
+        elif trans_noise == "gaussian" and obs_noise == "skew":
+            self.config = {"residual": LinearHMMReparam(obs=StableReparam())}
+        elif trans_noise == "skew" and obs_noise == "gaussian":
+            self.config = {"residual": LinearHMMReparam(trans=StableReparam())}
 
     def model(self, zero_data, covariates):
         hmm = self.hmm.get_dist(duration=zero_data.size(-2))
@@ -190,8 +206,8 @@ def main(**args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multivariate timeseries models")
-    parser.add_argument("--trans-noise", default='stable', type=str, choices=['gaussian', 'stable', 'student'])
-    parser.add_argument("--obs-noise", default='stable', type=str, choices=['gaussian', 'stable', 'student'])
+    parser.add_argument("--trans-noise", default='stable', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
+    parser.add_argument("--obs-noise", default='stable', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
     parser.add_argument("--dataset", default='metals', type=str)
     parser.add_argument("--data-dir", default='./data/', type=str)
     parser.add_argument("--log-dir", default='./logs/', type=str)
