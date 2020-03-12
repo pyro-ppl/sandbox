@@ -6,9 +6,9 @@ import pyro
 import pyro.distributions as dist
 import pyro.poutine as poutine
 import torch
-from pyro.contrib.evaluate import backtest
 from pyro.contrib.examples.bart import load_bart_od
 from pyro.contrib.forecast import ForecastingModel
+from pyro.contrib.forecast.evaluate import backtest
 from pyro.infer.reparam import LocScaleReparam, StudentTReparam, SymmetricStableReparam
 from pyro.ops.tensor_utils import periodic_repeat
 
@@ -71,7 +71,6 @@ class Model2(ForecastingModel):
 
 def main(args):
     pyro.enable_validation(__debug__)
-    pyro.set_rng_seed(args.seed)
 
     dataset = load_bart_od()
     print(dataset.keys())
@@ -94,13 +93,17 @@ def main(args):
         "log_every": args.log_every,
     }
 
-    filename = os.path.abspath(__file__)[:3] + ".{}.pkl".format(args.dist)
+    dirname = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    filename = os.path.join(dirname, os.path.basename(__file__)[:-3] + ".{}.pkl".format(args.dist))
     if args.force or not os.path.exists(filename):
-        windows = backtest(data, covariates, Model2,
-                           train_window=args.train_widow,
+        windows = backtest(data, covariates, lambda: Model2(args),
+                           train_window=args.train_window,
                            test_window=args.test_window,
                            stride=args.stride,
-                           forecaster_options=forecaster_options)
+                           forecaster_options=forecaster_options,
+                           seed=args.seed)
         with open(filename, "wb") as f:
             pickle.dump(f, windows)
     with open(filename, "rb") as f:
@@ -117,7 +120,7 @@ if __name__ == "__main__":
     parser.add_argument("--dist", default="stable")
     parser.add_argument("--train-window", default=24 * 90, type=int)
     parser.add_argument("--test-window", default=24 * 7, type=int)
-    parser.add_argument("--stride", default=30, type=int)
+    parser.add_argument("-s", "--stride", default=30, type=int)
     parser.add_argument("-b", "--batch-size", default=10, type=int)
     parser.add_argument("-n", "--num-steps", default=2000, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.1, type=float)
