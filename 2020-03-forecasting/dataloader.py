@@ -87,6 +87,11 @@ def get_data(dataset, datadir):
         data = torch.tensor(np.load(datadir + '/metals.npy'))
         data_mean, data_std = data.mean(0), data.std(0)
         data = (data - data_mean) / data_std
+    elif dataset=='solar':
+        # https://datacatalog.worldbank.org/dataset/nepal-solar-radiation-measurement-data
+        data = torch.tensor(np.load(datadir + '/solar.npz')['arr_0'])[-2000:].unsqueeze(-1)
+        data_mean, data_std = data.mean(0), data.std(0)
+        data = (data - data_mean) / data_std
     elif dataset=='dow':
         # https://fred.stlouisfed.org/categories/32255/downloaddata
         data = torch.tensor(np.load(datadir + '/dow.npy'))

@@ -84,6 +84,7 @@ class StableLinearHMM(PyroModule):
 
 def get_data(args=None):
     data, _, _, _ = get_raw_data(args['dataset'], args['data_dir'])
+    print("raw data", data.shape)
 
     to_keep = args['train_window'] + args['num_windows'] * args['test_window']
     assert to_keep <= data.size(0)
@@ -211,23 +212,23 @@ def main(**args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multivariate timeseries models")
-    parser.add_argument("--trans-noise", default='stable', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
-    parser.add_argument("--obs-noise", default='stable', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
+    parser.add_argument("--trans-noise", default='gaussian', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
+    parser.add_argument("--obs-noise", default='gaussian', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
     parser.add_argument("--dataset", default='metals', type=str)
     parser.add_argument("--data-dir", default='./data/', type=str)
     parser.add_argument("--log-dir", default='./logs/', type=str)
     parser.add_argument("--train-window", default=100, type=int)
     parser.add_argument("--test-window", default=5, type=int)
     parser.add_argument("--num-windows", default=2, type=int)
-    parser.add_argument("--stride", default=5, type=int)
-    parser.add_argument("--num-eval-samples", default=200, type=int)
-    parser.add_argument("--clip-norm", default=20.0, type=float)
-    parser.add_argument("-n", "--num-steps", default=3, type=int)
+    parser.add_argument("--stride", default=1, type=int)
+    parser.add_argument("--num-eval-samples", default=1000, type=int)
+    parser.add_argument("--clip-norm", default=10.0, type=float)
+    parser.add_argument("-n", "--num-steps", default=400, type=int)
     parser.add_argument("-d", "--state-dim", default=2, type=int)
-    parser.add_argument("-lr", "--learning-rate", default=0.05, type=float)
-    parser.add_argument("-lrd", "--learning-rate-decay", default=0.005, type=float)
+    parser.add_argument("-lr", "--learning-rate", default=0.03, type=float)
+    parser.add_argument("-lrd", "--learning-rate-decay", default=0.003, type=float)
     parser.add_argument("--plot", action="store_true")
-    parser.add_argument("--log-every", default=3, type=int)
+    parser.add_argument("--log-every", default=999, type=int)
     parser.add_argument("--seed", default=0, type=int)
     args = parser.parse_args()
 
