@@ -78,6 +78,7 @@ def main(args):
     print(" ".join(dataset["stations"]))
 
     data = dataset["counts"].permute(1, 2, 0).unsqueeze(-1).log1p().contiguous()
+    data = data.to(args.device)
     print(dataset["counts"].shape, data.shape)
     covariates = torch.zeros(data.size(-2), 0)  # empty
 
@@ -124,15 +125,24 @@ if __name__ == "__main__":
     parser.add_argument("--train-window", default=24 * 365, type=int)
     parser.add_argument("--test-window", default=24 * 14, type=int)
     parser.add_argument("-s", "--stride", default=24 * 35, type=int)
-    parser.add_argument("-b", "--batch-size", default=20, type=int)
+    parser.add_argument("-b", "--batch-size", default=10, type=int)
     parser.add_argument("-n", "--num-steps", default=2001, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.1, type=float)
     parser.add_argument("--log-every", default=50, type=int)
     parser.add_argument("--seed", default=1234567890, type=int)
     parser.add_argument("-f", "--force", action="store_true")
+    parser.add_argument("--device", default="")
     args = parser.parse_args()
+
+    if not args.device:
+        args.device = "cuda" if torch.cuda.is_available() else "cpu"
+    if args.device.startswith("cuda"):
+        torch.set_default_tensor_type("torch.cuda.FloatTensor")
+    print("Running on device {}".format(args.device))
+
     try:
         main(args)
     except Exception as e:
         import pdb
+        print(e)
         pdb.post_mortem(e.__traceback__)
