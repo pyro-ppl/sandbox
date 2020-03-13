@@ -13,6 +13,7 @@ from pyro.infer.reparam import LocScaleReparam, StableReparam
 from pyro.ops.tensor_utils import periodic_features
 
 RESULTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
+RESULTS = os.environ.get("BART_RESULTS", RESULTS)
 if not os.path.exists(RESULTS):
     os.makedirs(RESULTS)
 

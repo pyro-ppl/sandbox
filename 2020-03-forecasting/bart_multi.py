@@ -13,6 +13,7 @@ from pyro.infer.reparam import LocScaleReparam, SymmetricStableReparam
 from pyro.ops.tensor_utils import periodic_repeat
 
 RESULTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
+RESULTS = os.environ.get("BART_RESULTS", RESULTS)
 if not os.path.exists(RESULTS):
     os.makedirs(RESULTS)
 
@@ -105,6 +106,10 @@ def main(args):
         "log_every": args.log_every,
     }
 
+    def transform(pred, truth):
+        pred = pred.clamp(min=0)
+        return pred, truth
+
     for dist_type in args.dist.split(","):
         assert dist_type in {"normal", "stable", "studentt"}, dist_type
         filename = os.path.join(
@@ -116,6 +121,7 @@ def main(args):
                                stride=args.stride,
                                forecaster_options=forecaster_options,
                                batch_size=args.batch_size,
+                               transform=transform,
                                seed=args.seed)
             with open(filename, "wb") as f:
                 pickle.dump(windows, f)
