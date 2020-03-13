@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import pickle
 
@@ -11,6 +12,9 @@ from pyro.contrib.forecast import ForecastingModel
 from pyro.contrib.forecast.evaluate import backtest
 from pyro.infer.reparam import LocScaleReparam, SymmetricStableReparam
 from pyro.ops.tensor_utils import periodic_repeat
+
+logging.getLogger("pyro").setLevel(logging.DEBUG)
+logging.getLogger("pyro").handlers[0].setLevel(logging.DEBUG)
 
 RESULTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
 RESULTS = os.environ.get("BART_RESULTS", RESULTS)
@@ -112,6 +116,7 @@ def main(args):
 
     for dist_type in args.dist.split(","):
         assert dist_type in {"normal", "stable", "studentt"}, dist_type
+        print(dist_type)
         filename = os.path.join(
             RESULTS, os.path.basename(__file__)[:-3] + ".{}.pkl".format(dist_type))
         if args.force or not os.path.exists(filename):
@@ -136,10 +141,10 @@ if __name__ == "__main__":
     assert pyro.__version__.startswith("1.3.0")
     parser = argparse.ArgumentParser(description="Multivariate BART forecasting")
     parser.add_argument("--dist", default="normal,stable,studentt")
-    parser.add_argument("--train-window", default=24 * 365, type=int)
+    parser.add_argument("--train-window", default=24 * 90, type=int)
     parser.add_argument("--test-window", default=24 * 14, type=int)
-    parser.add_argument("-s", "--stride", default=24 * 35, type=int)
-    parser.add_argument("-b", "--batch-size", default=10, type=int)
+    parser.add_argument("-s", "--stride", default=24 * 100, type=int)
+    parser.add_argument("-b", "--batch-size", default=20, type=int)
     parser.add_argument("-n", "--num-steps", default=2001, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.1, type=float)
     parser.add_argument("--log-every", default=50, type=int)

@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import pickle
 
@@ -11,6 +12,9 @@ from pyro.contrib.forecast import ForecastingModel, backtest
 from pyro.contrib.forecast.evaluate import backtest
 from pyro.infer.reparam import LocScaleReparam, StableReparam
 from pyro.ops.tensor_utils import periodic_features
+
+logging.getLogger("pyro").setLevel(logging.DEBUG)
+logging.getLogger("pyro").handlers[0].setLevel(logging.DEBUG)
 
 RESULTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
 RESULTS = os.environ.get("BART_RESULTS", RESULTS)
@@ -104,6 +108,7 @@ def main(args):
 
     for dist_type in args.dist.split(","):
         assert dist_type in {"normal", "stable", "studentt"}, dist_type
+        print(dist_type)
         filename = os.path.join(
             RESULTS, os.path.basename(__file__)[:-3] + ".{}.pkl".format(dist_type))
         if args.force or not os.path.exists(filename):

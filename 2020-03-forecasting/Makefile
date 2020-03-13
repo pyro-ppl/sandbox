@@ -1,4 +1,4 @@
-.PHONY: all lint test FORCE
+.PHONY: all lint test clean FORCE
 
 all: test
 
@@ -9,5 +9,8 @@ test: lint FORCE
 	rm -rf /tmp/bart_results
 	BART_RESULTS=/tmp/bart_results python bart_uni.py -n 1 --stride 100
 	BART_RESULTS=/tmp/bart_results python bart_multi.py -n 1 --stride 50000 --train-window=32 --test-window=4
+
+clean: FORCE
+	rm -rf results
 
 FORCE:
