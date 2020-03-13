@@ -8,8 +8,7 @@ import pyro.distributions as dist
 import pyro.poutine as poutine
 import torch
 from pyro.contrib.examples.bart import load_bart_od
-from pyro.contrib.forecast import ForecastingModel
-from pyro.contrib.forecast.evaluate import backtest
+from pyro.contrib.forecast import ForecastingModel, backtest
 from pyro.infer.reparam import LocScaleReparam, SymmetricStableReparam
 from pyro.ops.tensor_utils import periodic_repeat
 
