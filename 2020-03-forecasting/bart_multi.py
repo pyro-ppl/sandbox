@@ -110,7 +110,7 @@ def main(args):
                                batch_size=args.batch_size,
                                seed=args.seed)
             with open(filename, "wb") as f:
-                pickle.dump(f, windows)
+                pickle.dump(windows, f)
         with open(filename, "rb") as f:
             windows = pickle.load(f)
         for name in ["crps", "mae"]:
