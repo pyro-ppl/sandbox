@@ -9,14 +9,18 @@ import torch
 from pyro.contrib.examples.bart import load_bart_od
 from pyro.contrib.forecast import ForecastingModel
 from pyro.contrib.forecast.evaluate import backtest
-from pyro.infer.reparam import LocScaleReparam, StudentTReparam, SymmetricStableReparam
+from pyro.infer.reparam import LocScaleReparam, SymmetricStableReparam
 from pyro.ops.tensor_utils import periodic_repeat
 
+RESULTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
+if not os.path.exists(RESULTS):
+    os.makedirs(RESULTS)
 
-class Model2(ForecastingModel):
+
+class Model(ForecastingModel):
     def __init__(self, dist_type):
         super().__init__()
-        self.dist = dist_type
+        self.dist_type = dist_type
 
     def model(self, zero_data, covariates):
         num_stations, num_stations, duration, one = zero_data.shape
@@ -25,43 +29,50 @@ class Model2(ForecastingModel):
         destin_plate = pyro.plate("destin", num_stations, dim=-2)
         hour_of_week_plate = pyro.plate("hour_of_week", 24 * 7, dim=-1)
 
-        if self.dist == "stable":
-            drift_stability = pyro.sample("drift_stability", dist.Uniform(1, 2))
-        elif self.dist == "studentt":
-            drift_dof = pyro.sample("drift_dof", dist.Uniform(1, 10))
+        # Globals.
         drift_scale = pyro.sample("drift_scale", dist.LogNormal(-20, 5))
+        if self.dist_type == "normal":
+            pass
+        elif self.dist_type == "stable":
+            drift_stability = pyro.sample("drift_stability", dist.Uniform(1, 2))
+        elif self.dist_type == "studentt":
+            drift_dof = pyro.sample("drift_dof", dist.Uniform(1, 10))
+        else:
+            raise ValueError(self.dist_type)
 
+        # Series locals.
         with origin_plate:
+            origin_scale = pyro.sample("origin_scale", dist.LogNormal(-5, 5))
             with hour_of_week_plate:
                 origin_seasonal = pyro.sample("origin_seasonal", dist.Normal(0, 5))
         with destin_plate:
+            destin_scale = pyro.sample("destin_scale", dist.LogNormal(-5, 5))
             with hour_of_week_plate:
                 destin_seasonal = pyro.sample("destin_seasonal", dist.Normal(0, 5))
             with self.time_plate:
-                with poutine.reparam(config={"drift": LocScaleReparam()}):
-                    if self.dist == "stable":
+                if self.dist_type == "normal":
+                    with poutine.reparam(config={"drift": LocScaleReparam()}):
+                        drift = pyro.sample("drift", dist.Normal(0, drift_scale))
+                elif self.dist_type == "stable":
+                    with poutine.reparam(config={"drift": LocScaleReparam()}):
                         with poutine.reparam(config={"drift": SymmetricStableReparam()}):
                             drift = pyro.sample("drift", dist.Stable(drift_stability, 0, drift_scale))
-                    elif self.dist == "studentt":
-                        with poutine.reparam(config={"drift": StudentTReparam()}):
-                            drift = pyro.sample("drift", dist.StudentT(drift_dof, 0, drift_scale))
-                    else:
-                        assert self.dist == "normal"
-                        drift = pyro.sample("drift", dist.Normal(0, drift_scale))
+                elif self.dist_type == "studentt":
+                    with poutine.reparam(config={"drift": LocScaleReparam(shape_params=["df"])}):
+                        drift = pyro.sample("drift", dist.StudentT(drift_dof, 0, drift_scale))
+                else:
+                    raise ValueError(self.dist_type)
         with origin_plate, destin_plate:
             pairwise = pyro.sample("pairwise", dist.Normal(0, 1))
 
+        # Form prediction.
         seasonal = origin_seasonal + destin_seasonal  # Note this broadcasts.
         seasonal = periodic_repeat(seasonal, duration, dim=-1)
         motion = drift.cumsum(dim=-1)  # A Levy stable motion to model shocks.
         prediction = motion + seasonal + pairwise
 
-        with origin_plate:
-            origin_scale = pyro.sample("origin_scale", dist.LogNormal(-5, 5))
-        with destin_plate:
-            destin_scale = pyro.sample("destin_scale", dist.LogNormal(-5, 5))
+        # Form noise dist.
         scale = origin_scale + destin_scale
-
         scale = scale.unsqueeze(-1)
         prediction = prediction.unsqueeze(-1)
         noise_dist = dist.Normal(0, scale)
@@ -94,15 +105,12 @@ def main(args):
         "log_every": args.log_every,
     }
 
-    dirname = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
-    if not os.path.exists(dirname):
-        os.makedirs(dirname)
     for dist_type in args.dist.split(","):
         assert dist_type in {"normal", "stable", "studentt"}, dist_type
         filename = os.path.join(
-            dirname, os.path.basename(__file__)[:-3] + ".{}.pkl".format(dist_type))
+            RESULTS, os.path.basename(__file__)[:-3] + ".{}.pkl".format(dist_type))
         if args.force or not os.path.exists(filename):
-            windows = backtest(data, covariates, lambda: Model2(dist_type),
+            windows = backtest(data, covariates, lambda: Model(dist_type),
                                train_window=args.train_window,
                                test_window=args.test_window,
                                stride=args.stride,
