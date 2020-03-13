@@ -107,26 +107,22 @@ class Model(ForecastingModel):
         self.trans_noise = trans_noise
         self.obs_noise = obs_noise
         self.hmm = StableLinearHMM(obs_dim=obs_dim, trans_noise=trans_noise, obs_noise=obs_noise, state_dim=state_dim)
-        if trans_noise == "gaussian" and obs_noise == "gaussian":
-            self.config = {"residual": LinearHMMReparam()}
-        elif trans_noise == "stable" and obs_noise == "gaussian":
-            self.config = {"residual": LinearHMMReparam(trans=SymmetricStableReparam())}
-        elif trans_noise == "gaussian" and obs_noise == "stable":
-            self.config = {"residual": LinearHMMReparam(obs=SymmetricStableReparam())}
-        elif trans_noise == "stable" and obs_noise == "stable":
-            self.config = {"residual": LinearHMMReparam(obs=SymmetricStableReparam(), trans=SymmetricStableReparam())}
-        elif trans_noise == "gaussian" and obs_noise == "student":
-            self.config = {"residual": LinearHMMReparam(obs=StudentTReparam())}
-        elif trans_noise == "student" and obs_noise == "gaussian":
-            self.config = {"residual": LinearHMMReparam(trans=StudentTReparam())}
-        elif trans_noise == "student" and obs_noise == "student":
-            self.config = {"residual": LinearHMMReparam(obs=StudentTReparam(), trans=StudentTReparam())}
-        elif trans_noise == "skew" and obs_noise == "skew":
-            self.config = {"residual": LinearHMMReparam(obs=StableReparam(), trans=StableReparam())}
-        elif trans_noise == "gaussian" and obs_noise == "skew":
-            self.config = {"residual": LinearHMMReparam(obs=StableReparam())}
-        elif trans_noise == "skew" and obs_noise == "gaussian":
-            self.config = {"residual": LinearHMMReparam(trans=StableReparam())}
+        trans, obs = None, None
+
+        if trans_noise == "stable":
+            trans = SymmetricStableReparam()
+        elif trans_noise == "skew":
+            trans = StableReparam()
+        elif trans_noise == "student":
+            trans = StudentTReparam()
+        if obs_noise == "stable":
+            obs = SymmetricStableReparam()
+        elif obs_noise == "skew":
+            obs = StableReparam()
+        elif obs_noise == "student":
+            obs = StudentTReparam()
+
+        self.config = {"residual": LinearHMMReparam(obs=obs, trans=trans)}
 
     def model(self, zero_data, covariates):
         hmm = self.hmm.get_dist(duration=zero_data.size(-2))
@@ -136,11 +132,12 @@ class Model(ForecastingModel):
 
 
 def main(**args):
-    log_file = '{}.{}.{}.tt_{}_{}.nw_{}.sd_{}.nst_{}.cn_{:.1f}.lr_{:.2f}.lrd_{:.2f}.{}.log'
+    log_file = '{}.{}.{}.tt_{}_{}.nw_{}.sd_{}.nst_{}.cn_{:.1f}.lr_{:.2f}.lrd_{:.2f}.seed_{}.{}.log'
     log_file = log_file.format(args['dataset'], args['trans_noise'], args['obs_noise'],
                                args['train_window'], args['test_window'], args['num_windows'],
                                args['state_dim'], args['num_steps'],
                                args['clip_norm'], args['learning_rate'], args['learning_rate_decay'],
+                               args['seed'],
                                str(uuid.uuid4())[0:4])
 
     log = get_logger(args['log_dir'], log_file, use_local_logger=False)
@@ -221,9 +218,9 @@ if __name__ == "__main__":
     parser.add_argument("--test-window", default=5, type=int)
     parser.add_argument("--num-windows", default=2, type=int)
     parser.add_argument("--stride", default=1, type=int)
-    parser.add_argument("--num-eval-samples", default=1000, type=int)
+    parser.add_argument("--num-eval-samples", default=100, type=int)
     parser.add_argument("--clip-norm", default=10.0, type=float)
-    parser.add_argument("-n", "--num-steps", default=400, type=int)
+    parser.add_argument("-n", "--num-steps", default=2, type=int)
     parser.add_argument("-d", "--state-dim", default=2, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.03, type=float)
     parser.add_argument("-lrd", "--learning-rate-decay", default=0.003, type=float)
