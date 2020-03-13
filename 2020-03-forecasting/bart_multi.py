@@ -83,8 +83,8 @@ def main(args):
 
     def create_plates(zero_data, covariates):
         num_origins, num_destins, duration, one = zero_data.shape
-        return [pyro.plate("origin", num_origins, subsample_size=args.batch_size, dim=-3),
-                pyro.plate("destin", num_destins, subsample_size=args.batch_size, dim=-2)]
+        return [pyro.plate("origin", num_origins, subsample_size=10, dim=-3),
+                pyro.plate("destin", num_destins, subsample_size=10, dim=-2)]
 
     forecaster_options = {
         "create_plates": create_plates,
@@ -106,6 +106,7 @@ def main(args):
                                test_window=args.test_window,
                                stride=args.stride,
                                forecaster_options=forecaster_options,
+                               batch_size=args.batch_size,
                                seed=args.seed)
             with open(filename, "wb") as f:
                 pickle.dump(f, windows)
@@ -121,10 +122,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multivariate BART forecasting")
     parser.add_argument("--dist", default="normal,stable,studentt")
     parser.add_argument("--train-window", default=24 * 365, type=int)
-    parser.add_argument("--test-window", default=24 * 7, type=int)
+    parser.add_argument("--test-window", default=24 * 14, type=int)
     parser.add_argument("-s", "--stride", default=24 * 35, type=int)
-    parser.add_argument("-b", "--batch-size", default=10, type=int)
-    parser.add_argument("-n", "--num-steps", default=2000, type=int)
+    parser.add_argument("-b", "--batch-size", default=20, type=int)
+    parser.add_argument("-n", "--num-steps", default=2001, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.1, type=float)
     parser.add_argument("--log-every", default=50, type=int)
     parser.add_argument("--seed", default=1234567890, type=int)
