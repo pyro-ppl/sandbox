@@ -14,9 +14,9 @@ from pyro.ops.tensor_utils import periodic_repeat
 
 
 class Model2(ForecastingModel):
-    def __init__(self, args):
+    def __init__(self, dist_type):
         super().__init__()
-        self.dist = args.dist
+        self.dist = dist_type
 
     def model(self, zero_data, covariates):
         num_stations, num_stations, duration, one = zero_data.shape
@@ -46,7 +46,7 @@ class Model2(ForecastingModel):
                         with poutine.reparam(config={"drift": StudentTReparam()}):
                             drift = pyro.sample("drift", dist.StudentT(drift_dof, 0, drift_scale))
                     else:
-                        assert self.dist == "gaussian"
+                        assert self.dist == "normal"
                         drift = pyro.sample("drift", dist.Normal(0, drift_scale))
         with origin_plate, destin_plate:
             pairwise = pyro.sample("pairwise", dist.Normal(0, 1))
@@ -96,31 +96,33 @@ def main(args):
     dirname = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
     if not os.path.exists(dirname):
         os.makedirs(dirname)
-    filename = os.path.join(dirname, os.path.basename(__file__)[:-3] + ".{}.pkl".format(args.dist))
-    if args.force or not os.path.exists(filename):
-        windows = backtest(data, covariates, lambda: Model2(args),
-                           train_window=args.train_window,
-                           test_window=args.test_window,
-                           stride=args.stride,
-                           forecaster_options=forecaster_options,
-                           seed=args.seed)
-        with open(filename, "wb") as f:
-            pickle.dump(f, windows)
-    with open(filename, "rb") as f:
-        windows = pickle.load(f)
-
-    for name in ["crps", "mae"]:
-        values = torch.tensor([w[name] for w in windows])
-        print("{} = {:0.3g} +- {:0.2g}".format(name, values.mean().item(), values.std().item()))
+    for dist_type in args.dist.split(","):
+        assert dist_type in {"normal", "stable", "studentt"}, dist_type
+        filename = os.path.join(
+            dirname, os.path.basename(__file__)[:-3] + ".{}.pkl".format(dist_type))
+        if args.force or not os.path.exists(filename):
+            windows = backtest(data, covariates, lambda: Model2(dist_type),
+                               train_window=args.train_window,
+                               test_window=args.test_window,
+                               stride=args.stride,
+                               forecaster_options=forecaster_options,
+                               seed=args.seed)
+            with open(filename, "wb") as f:
+                pickle.dump(f, windows)
+        with open(filename, "rb") as f:
+            windows = pickle.load(f)
+        for name in ["crps", "mae"]:
+            values = torch.tensor([w[name] for w in windows])
+            print("{} = {:0.3g} +- {:0.2g}".format(name, values.mean(), values.std()))
 
 
 if __name__ == "__main__":
     assert pyro.__version__.startswith("1.3.0")
     parser = argparse.ArgumentParser(description="Multivariate BART forecasting")
-    parser.add_argument("--dist", default="stable")
-    parser.add_argument("--train-window", default=24 * 90, type=int)
+    parser.add_argument("--dist", default="normal,stable,studentt")
+    parser.add_argument("--train-window", default=24 * 365, type=int)
     parser.add_argument("--test-window", default=24 * 7, type=int)
-    parser.add_argument("-s", "--stride", default=30, type=int)
+    parser.add_argument("-s", "--stride", default=24 * 35, type=int)
     parser.add_argument("-b", "--batch-size", default=10, type=int)
     parser.add_argument("-n", "--num-steps", default=2000, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.1, type=float)
@@ -128,4 +130,8 @@ if __name__ == "__main__":
     parser.add_argument("--seed", default=1234567890, type=int)
     parser.add_argument("-f", "--force", action="store_true")
     args = parser.parse_args()
-    main(args)
+    try:
+        main(args)
+    except Exception as e:
+        import pdb
+        pdb.post_mortem(e.__traceback__)
