@@ -104,10 +104,11 @@ def main(args):
     T, O, D = dataset["counts"].shape
     data = dataset["counts"].reshape(T, -1).sum(-1, keepdim=True).log1p()
     print(dataset["counts"].shape, data.shape)
-    covariates = periodic_features(len(data), 365.25 * 24, 7 * 24)
+    covariates = periodic_features(len(data), 365.25 * 24, 24)
 
     forecaster_options = {
         "learning_rate": args.learning_rate,
+        "clip_norm": args.clip_norm,
         "num_steps": args.num_steps,
         "log_every": args.log_every,
     }
@@ -145,8 +146,9 @@ if __name__ == "__main__":
     parser.add_argument("--min-train-window", default=4 * 365 * 24, type=int)
     parser.add_argument("--test-window", default=4 * 7 * 24, type=int)
     parser.add_argument("-s", "--stride", default=30 * 24, type=int)
-    parser.add_argument("-n", "--num-steps", default=1001, type=int)
+    parser.add_argument("-n", "--num-steps", default=2001, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.1, type=float)
+    parser.add_argument("--clip-norm", default=50, type=float)
     parser.add_argument("--log-every", default=100, type=int)
     parser.add_argument("--seed", default=1234567890, type=int)
     parser.add_argument("-f", "--force", action="store_true")
