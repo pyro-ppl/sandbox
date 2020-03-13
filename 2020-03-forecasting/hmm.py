@@ -167,6 +167,7 @@ def main(**args):
                        lambda: Model(trans_noise=args['trans_noise'], state_dim=args['state_dim'],
                                      obs_noise=args['obs_noise'], obs_dim=data.size(-1)).cuda(),
                        train_window=None,
+                       seed=args['seed'],
                        min_train_window=args['train_window'],
                        test_window=args['test_window'],
                        stride=args['stride'],
@@ -214,10 +215,10 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", default='metals', type=str)
     parser.add_argument("--data-dir", default='./data/', type=str)
     parser.add_argument("--log-dir", default='./logs/', type=str)
-    parser.add_argument("--train-window", default=100, type=int)
+    parser.add_argument("--train-window", default=200, type=int)
     parser.add_argument("--test-window", default=5, type=int)
-    parser.add_argument("--num-windows", default=2, type=int)
-    parser.add_argument("--stride", default=1, type=int)
+    parser.add_argument("--num-windows", default=1, type=int)
+    parser.add_argument("--stride", default=5, type=int)
     parser.add_argument("--num-eval-samples", default=100, type=int)
     parser.add_argument("--clip-norm", default=10.0, type=float)
     parser.add_argument("-n", "--num-steps", default=2, type=int)
