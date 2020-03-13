@@ -103,6 +103,7 @@ def main(args):
 
     T, O, D = dataset["counts"].shape
     data = dataset["counts"].reshape(T, -1).sum(-1, keepdim=True).log1p()
+    data = data.to(args.device)
     print(dataset["counts"].shape, data.shape)
     covariates = periodic_features(len(data), 365.25 * 24, 24)
 
@@ -128,6 +129,7 @@ def main(args):
                                test_window=args.test_window,
                                stride=args.stride,
                                forecaster_options=forecaster_options,
+                               batch_size=args.batch_size,
                                transform=transform,
                                seed=args.seed)
             with open(filename, "wb") as f:
@@ -146,6 +148,7 @@ if __name__ == "__main__":
     parser.add_argument("--min-train-window", default=4 * 365 * 24, type=int)
     parser.add_argument("--test-window", default=4 * 7 * 24, type=int)
     parser.add_argument("-s", "--stride", default=30 * 24, type=int)
+    parser.add_argument("-b", "--batch-size", default=20, type=int)
     parser.add_argument("-n", "--num-steps", default=2001, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.1, type=float)
     parser.add_argument("--clip-norm", default=50, type=float)
