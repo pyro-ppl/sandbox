@@ -135,7 +135,7 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--stride", default=4, type=int)
     parser.add_argument("-n", "--num-steps", default=1001, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.1, type=float)
-    parser.add_argument("--log-every", default=100, type=int)
+    parser.add_argument("-l", "--log-every", default=100, type=int)
     parser.add_argument("--seed", default=1234567890, type=int)
     parser.add_argument("-f", "--force", action="store_true")
     parser.add_argument("--device", default="")
