@@ -9,7 +9,7 @@ import pyro.poutine as poutine
 import torch
 from pyro.contrib.examples.bart import load_bart_od
 from pyro.contrib.forecast import ForecastingModel, backtest
-from pyro.infer.reparam import LocScaleReparam, SymmetricStableReparam
+from pyro.infer.reparam import LocScaleReparam, StableReparam, SymmetricStableReparam
 from pyro.ops.tensor_utils import periodic_repeat
 
 logging.getLogger("pyro").setLevel(logging.DEBUG)
@@ -34,13 +34,16 @@ class Model(ForecastingModel):
         hour_of_week_plate = pyro.plate("hour_of_week", 24 * 7, dim=-1)
 
         # Globals.
-        drift_scale = pyro.sample("drift_scale", dist.LogNormal(-20, 5))
+        trans_scale = pyro.sample("trans_scale", dist.LogNormal(-20, 5))
         if self.dist_type == "normal":
             pass
         elif self.dist_type == "stable":
-            drift_stability = pyro.sample("drift_stability", dist.Uniform(1, 2))
+            trans_stability = pyro.sample("trans_stability", dist.Uniform(1, 2))
+            obs_stability = pyro.sample("obs_stability", dist.Uniform(1, 2))
+            obs_skew = pyro.sample("obs_skew", dist.Uniform(-1, 1))
         elif self.dist_type == "studentt":
-            drift_dof = pyro.sample("drift_dof", dist.Uniform(1, 10))
+            trans_dof = pyro.sample("trans_dof", dist.Uniform(1, 10))
+            obs_dof = pyro.sample("obs_dof", dist.Uniform(1, 10))
         else:
             raise ValueError(self.dist_type)
 
@@ -49,39 +52,72 @@ class Model(ForecastingModel):
             origin_scale = pyro.sample("origin_scale", dist.LogNormal(-5, 5))
             with hour_of_week_plate:
                 origin_seasonal = pyro.sample("origin_seasonal", dist.Normal(0, 5))
+            with self.time_plate:
+                if self.dist_type == "normal":
+                    with poutine.reparam(config={"origin_drift": LocScaleReparam()}):
+                        origin_drift = pyro.sample("origin_drift", dist.Normal(0, trans_scale))
+                elif self.dist_type == "stable":
+                    with poutine.reparam(config={"origin_drift": LocScaleReparam()}):
+                        with poutine.reparam(config={"origin_drift": SymmetricStableReparam()}):
+                            origin_drift = pyro.sample(
+                                "origin_drift", dist.Stable(trans_stability, 0, trans_scale))
+                elif self.dist_type == "studentt":
+                    with poutine.reparam(config={"origin_drift": LocScaleReparam(shape_params=["df"])}):
+                        origin_drift = pyro.sample(
+                            "origin_drift", dist.StudentT(trans_dof, 0, trans_scale))
+                else:
+                    raise ValueError(self.dist_type)
         with destin_plate:
             destin_scale = pyro.sample("destin_scale", dist.LogNormal(-5, 5))
             with hour_of_week_plate:
                 destin_seasonal = pyro.sample("destin_seasonal", dist.Normal(0, 5))
             with self.time_plate:
                 if self.dist_type == "normal":
-                    with poutine.reparam(config={"drift": LocScaleReparam()}):
-                        drift = pyro.sample("drift", dist.Normal(0, drift_scale))
+                    with poutine.reparam(config={"destin_drift": LocScaleReparam()}):
+                        destin_drift = pyro.sample("destin_drift", dist.Normal(0, trans_scale))
                 elif self.dist_type == "stable":
-                    with poutine.reparam(config={"drift": LocScaleReparam()}):
-                        with poutine.reparam(config={"drift": SymmetricStableReparam()}):
-                            drift = pyro.sample("drift", dist.Stable(drift_stability, 0, drift_scale))
+                    with poutine.reparam(config={"destin_drift": LocScaleReparam()}):
+                        with poutine.reparam(config={"destin_drift": SymmetricStableReparam()}):
+                            destin_drift = pyro.sample(
+                                "destin_drift", dist.Stable(trans_stability, 0, trans_scale))
                 elif self.dist_type == "studentt":
-                    with poutine.reparam(config={"drift": LocScaleReparam(shape_params=["df"])}):
-                        drift = pyro.sample("drift", dist.StudentT(drift_dof, 0, drift_scale))
+                    with poutine.reparam(config={"destin_drift": LocScaleReparam(shape_params=["df"])}):
+                        destin_drift = pyro.sample(
+                            "destin_drift", dist.StudentT(trans_dof, 0, trans_scale))
                 else:
                     raise ValueError(self.dist_type)
         with origin_plate, destin_plate:
             pairwise = pyro.sample("pairwise", dist.Normal(0, 1))
 
         # Form prediction.
-        seasonal = origin_seasonal + destin_seasonal  # Note this broadcasts.
-        seasonal = periodic_repeat(seasonal, duration, dim=-1)
-        motion = drift.cumsum(dim=-1)  # A Levy stable motion to model shocks.
-        prediction = motion + seasonal + pairwise
+        destin_prediction = (destin_drift.cumsum(dim=-1) +
+                             periodic_repeat(destin_seasonal, duration, dim=-1))
+        origin_prediction = (origin_drift.cumsum(dim=-1) +
+                             periodic_repeat(origin_seasonal, duration, dim=-1))
+        assert destin_prediction.shape[-2:] == (destin_plate.subsample_size, duration)
+        assert origin_prediction.shape[-3:] == (origin_plate.subsample_size, 1, duration)
+        prediction = destin_prediction + origin_prediction + pairwise  # Note the broadcast.
+        assert prediction.shape[-3:] == (origin_plate.subsample_size,
+                                         destin_plate.subsample_size,
+                                         duration)
 
         # Form noise dist.
         scale = origin_scale + destin_scale
         scale = scale.unsqueeze(-1)
         prediction = prediction.unsqueeze(-1)
-        noise_dist = dist.Normal(0, scale)
         with origin_plate, destin_plate:
-            self.predict(noise_dist, prediction)
+            if self.dist_type == "normal":
+                noise_dist = dist.Normal(0, scale)
+                self.predict(noise_dist, prediction)
+            elif self.dist_type == "stable":
+                noise_dist = dist.Stable(obs_stability.unsqueeze(-1), obs_skew.unsqueeze(-1), scale)
+                with poutine.reparam(config={"residual": StableReparam()}):
+                    self.predict(noise_dist, prediction)
+            elif self.dist_type == "studentt":
+                noise_dist = dist.StudentT(obs_dof.unsqueeze(-1), 0, scale)
+                self.predict(noise_dist, prediction)
+            else:
+                raise ValueError(self.dist_type)
 
 
 def main(args):
@@ -146,7 +182,7 @@ if __name__ == "__main__":
     parser.add_argument("-b", "--batch-size", default=20, type=int)
     parser.add_argument("-n", "--num-steps", default=2001, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.1, type=float)
-    parser.add_argument("--log-every", default=50, type=int)
+    parser.add_argument("-l", "--log-every", default=50, type=int)
     parser.add_argument("--seed", default=1234567890, type=int)
     parser.add_argument("-f", "--force", action="store_true")
     parser.add_argument("--device", default="")
