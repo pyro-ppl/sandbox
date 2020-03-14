@@ -3,6 +3,7 @@
 
 import argparse
 import uuid
+import time
 
 import numpy as np
 import math
@@ -142,12 +143,16 @@ def main(**args):
 
     log = get_logger(args['log_dir'], log_file, use_local_logger=False)
 
-    torch.set_default_tensor_type('torch.cuda.FloatTensor')
+    #torch.set_default_tensor_type('torch.cuda.FloatTensor')
+    torch.set_default_tensor_type('torch.cuda.DoubleTensor')
+
     log(args)
     log("")
 
     pyro.enable_validation(__debug__)
     pyro.set_rng_seed(args['seed'])
+
+    t0 = time.time()
 
     def svi_forecaster_options(t0, t1, t2):
         num_steps = args['num_steps']  # if t1 == args.train_window else 200
@@ -172,6 +177,7 @@ def main(**args):
                        test_window=args['test_window'],
                        stride=args['stride'],
                        num_samples=args['num_eval_samples'],
+                       batch_size=1000,
                        forecaster_options=svi_forecaster_options,
                        forecaster_fn=Forecaster)
 
@@ -207,26 +213,28 @@ def main(**args):
     with open(args['log_dir'] + '/' + log_file[:-4] + '.pkl', 'wb') as f:
         pickle.dump(results, f, protocol=2)
 
+    log("[ELAPSED TIME]: {:.3f}".format(time.time() - t0))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multivariate timeseries models")
-    parser.add_argument("--trans-noise", default='gaussian', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
-    parser.add_argument("--obs-noise", default='gaussian', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
+    parser.add_argument("--trans-noise", default='stable', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
+    parser.add_argument("--obs-noise", default='stable', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
     parser.add_argument("--dataset", default='metals', type=str)
     parser.add_argument("--data-dir", default='./data/', type=str)
     parser.add_argument("--log-dir", default='./logs/', type=str)
-    parser.add_argument("--train-window", default=200, type=int)
+    parser.add_argument("--train-window", default=1000, type=int)
     parser.add_argument("--test-window", default=5, type=int)
     parser.add_argument("--num-windows", default=1, type=int)
     parser.add_argument("--stride", default=5, type=int)
-    parser.add_argument("--num-eval-samples", default=100, type=int)
+    parser.add_argument("--num-eval-samples", default=2500, type=int)
     parser.add_argument("--clip-norm", default=10.0, type=float)
-    parser.add_argument("-n", "--num-steps", default=2, type=int)
-    parser.add_argument("-d", "--state-dim", default=2, type=int)
-    parser.add_argument("-lr", "--learning-rate", default=0.03, type=float)
-    parser.add_argument("-lrd", "--learning-rate-decay", default=0.003, type=float)
+    parser.add_argument("-n", "--num-steps", default=200, type=int)
+    parser.add_argument("-d", "--state-dim", default=5, type=int)
+    parser.add_argument("-lr", "--learning-rate", default=0.3, type=float)
+    parser.add_argument("-lrd", "--learning-rate-decay", default=0.01, type=float)
     parser.add_argument("--plot", action="store_true")
-    parser.add_argument("--log-every", default=999, type=int)
+    parser.add_argument("--log-every", default=20, type=int)
     parser.add_argument("--seed", default=0, type=int)
     args = parser.parse_args()
 
