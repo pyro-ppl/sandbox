@@ -10,7 +10,7 @@ import torch
 from pyro.contrib.examples.bart import load_bart_od
 from pyro.contrib.forecast import ForecastingModel, backtest
 from pyro.infer.reparam import LocScaleReparam, StableReparam
-from pyro.ops.tensor_utils import periodic_features
+from pyro.ops.tensor_utils import periodic_cumsum, periodic_features, periodic_repeat
 
 logging.getLogger("pyro").setLevel(logging.DEBUG)
 logging.getLogger("pyro").handlers[0].setLevel(logging.DEBUG)
@@ -27,59 +27,67 @@ class Model(ForecastingModel):
         self.dist_type = dist_type
 
     def model(self, zero_data, covariates):
-        data_dim = zero_data.size(-1)
+        duration = zero_data.size(-2)
         feature_dim = covariates.size(-1)
 
         # Globals.
-        bias = pyro.sample("bias", dist.Normal(0, 10).expand([data_dim]).to_event(1))
+        bias = pyro.sample("bias", dist.Normal(0, 10))
         weight = pyro.sample("weight", dist.Normal(0, 0.1).expand([feature_dim]).to_event(1))
-        trans_scale = pyro.sample("trans_scale", dist.LogNormal(-20, 5).expand([1]).to_event(1))
-        obs_scale = pyro.sample("obs_scale", dist.LogNormal(-5, 5).expand([1]).to_event(1))
+        how_scale = pyro.sample("how_scale", dist.LogNormal(-20, 5))
+        trans_scale = pyro.sample("trans_scale", dist.LogNormal(-20, 5))
+        obs_scale = pyro.sample("obs_scale", dist.LogNormal(-5, 5))
         if self.dist_type == "normal":
             pass
         elif self.dist_type == "stable":
-            trans_stability = pyro.sample("trans_stability", dist.Uniform(1, 2).expand([1]).to_event(1))
-            trans_skew = pyro.sample("trans_skew", dist.Uniform(-1, 1).expand([1]).to_event(1))
-            obs_stability = pyro.sample("obs_stability", dist.Uniform(1, 2).expand([1]).to_event(1))
-            obs_skew = pyro.sample("obs_skew", dist.Uniform(-1, 1).expand([1]).to_event(1))
+            stability = pyro.sample("stability", dist.Uniform(1, 2))
+            how_skew = pyro.sample("how_skew", dist.Uniform(-1, 1))
+            trans_skew = pyro.sample("trans_skew", dist.Uniform(-1, 1))
+            obs_skew = pyro.sample("obs_skew", dist.Uniform(-1, 1))
         elif self.dist_type == "studentt":
-            trans_dof = pyro.sample("trans_dof", dist.Uniform(1, 10).expand([1]).to_event(1))
-            obs_dof = pyro.sample("obs_dof", dist.Uniform(1, 10).expand([1]).to_event(1))
+            dof = pyro.sample("dof", dist.Uniform(1, 10))
         else:
             raise ValueError(self.dist_type)
 
         # Series locals.
+        with pyro.plate("hour_of_week", 24 * 7, dim=-1):
+            how_init = pyro.sample("how_init", dist.Normal(0, 10))
         with self.time_plate:
             if self.dist_type == "normal":
-                with poutine.reparam(config={"drift": LocScaleReparam()}):
-                    drift = pyro.sample("drift", dist.Normal(zero_data, trans_scale).to_event(1))
+                with poutine.reparam(config={"drift": LocScaleReparam(), "how_drift": LocScaleReparam()}):
+                    drift = pyro.sample("drift", dist.Normal(0, trans_scale))
+                    how_drift = pyro.sample("how_drift", dist.Normal(0, how_scale))
             elif self.dist_type == "stable":
-                with poutine.reparam(config={"drift": LocScaleReparam()}):
-                    with poutine.reparam(config={"drift": StableReparam()}):
-                        drift = pyro.sample("drift",
-                                            dist.Stable(trans_stability, trans_skew, trans_scale).to_event(1))
+                with poutine.reparam(config={"drift": LocScaleReparam(), "how_drift": LocScaleReparam()}):
+                    with poutine.reparam(config={"drift": StableReparam(), "how_drift": StableReparam()}):
+                        drift = pyro.sample("drift", dist.Stable(stability, trans_skew, trans_scale))
+                        how_drift = pyro.sample("how_drift", dist.Stable(stability, how_skew, how_scale))
             elif self.dist_type == "studentt":
-                with poutine.reparam(config={"drift": LocScaleReparam(shape_params=["df"])}):
-                    drift = pyro.sample("drift",
-                                        dist.StudentT(trans_dof, zero_data, trans_scale).to_event(1))
+                with poutine.reparam(config={"drift": LocScaleReparam(shape_params=["df"]),
+                                             "how_drift": LocScaleReparam(shape_params=["df"])}):
+                    drift = pyro.sample("drift", dist.StudentT(dof, 0, trans_scale))
+                    how_drift = pyro.sample("how_drift", dist.StudentT(dof, 0, how_scale))
             else:
                 raise ValueError(self.dist_type)
-        motion = drift.cumsum(-2)
 
         # Form prediction.
-        prediction = motion + bias + (weight * covariates).sum(-1, keepdim=True)
+        periodic_lowpass = (weight * covariates).sum(-1)
+        periodic_highpass = (periodic_repeat(how_init, duration, dim=-1) +
+                             periodic_cumsum(how_drift, 24 * 7, dim=-1))
+        motion = drift.cumsum(-1)
+        prediction = bias + periodic_highpass + periodic_lowpass + motion
+        prediction = prediction.unsqueeze(-1)
         assert prediction.shape[-2:] == zero_data.shape
 
         # Form noise dist.
         if self.dist_type == "normal":
-            obs_dist = dist.Normal(0, obs_scale)
+            obs_dist = dist.Normal(0, obs_scale.unsqueeze(-1))
             self.predict(obs_dist, prediction)
         elif self.dist_type == "stable":
-            obs_dist = dist.Stable(obs_stability, obs_skew, obs_scale)
+            obs_dist = dist.Stable(stability.unsqueeze(-1), obs_skew.unsqueeze(-1), obs_scale.unsqueeze(-1))
             with poutine.reparam(config={"residual": StableReparam()}):
                 self.predict(obs_dist, prediction)
         elif self.dist_type == "studentt":
-            obs_dist = dist.StudentT(obs_dof, 0, obs_scale)
+            obs_dist = dist.StudentT(dof.unsqueeze(-1), 0, obs_scale.unsqueeze(-1))
             self.predict(obs_dist, prediction)
         else:
             raise ValueError(self.dist_type)
@@ -94,16 +102,21 @@ def main(args):
     print(" ".join(dataset["stations"]))
 
     T, O, D = dataset["counts"].shape
-    data = dataset["counts"][:T // (24 * 7) * 24 * 7].reshape(T // (24 * 7), -1).sum(-1).log()
-    data = data.unsqueeze(-1)
+    data = dataset["counts"].reshape(T, -1).sum(-1, keepdim=True).log1p()
+    data = data.to(args.device)
     print(dataset["counts"].shape, data.shape)
-    covariates = periodic_features(len(data), 365.25 / 7)
+    covariates = periodic_features(len(data), 365.25 * 24, 24)
 
     forecaster_options = {
         "learning_rate": args.learning_rate,
+        "clip_norm": args.clip_norm,
         "num_steps": args.num_steps,
         "log_every": args.log_every,
     }
+
+    def transform(pred, truth):
+        pred = pred.clamp(min=0)
+        return pred, truth
 
     for dist_type in args.dist.split(","):
         assert dist_type in {"normal", "stable", "studentt"}, dist_type
@@ -116,6 +129,8 @@ def main(args):
                                test_window=args.test_window,
                                stride=args.stride,
                                forecaster_options=forecaster_options,
+                               batch_size=args.batch_size,
+                               transform=transform,
                                seed=args.seed)
             with open(filename, "wb") as f:
                 pickle.dump(windows, f)
@@ -128,13 +143,15 @@ def main(args):
 
 if __name__ == "__main__":
     assert pyro.__version__.startswith("1.3.0")
-    parser = argparse.ArgumentParser(description="Univariate BART weekly forecasting")
+    parser = argparse.ArgumentParser(description="Univariate BART hourly forecasting")
     parser.add_argument("--dist", default="normal,stable,studentt")
-    parser.add_argument("--min-train-window", default=52 * 2, type=int)
-    parser.add_argument("--test-window", default=52, type=int)
-    parser.add_argument("-s", "--stride", default=4, type=int)
-    parser.add_argument("-n", "--num-steps", default=1001, type=int)
+    parser.add_argument("--min-train-window", default=4 * 365 * 24, type=int)
+    parser.add_argument("--test-window", default=4 * 7 * 24, type=int)
+    parser.add_argument("-s", "--stride", default=30 * 24, type=int)
+    parser.add_argument("-b", "--batch-size", default=20, type=int)
+    parser.add_argument("-n", "--num-steps", default=2001, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.1, type=float)
+    parser.add_argument("--clip-norm", default=50, type=float)
     parser.add_argument("--log-every", default=100, type=int)
     parser.add_argument("--seed", default=1234567890, type=int)
     parser.add_argument("-f", "--force", action="store_true")
