@@ -59,7 +59,7 @@ class StableLinearHMM(PyroModule):
             return Stable(self.obs_stability, torch.zeros(self.obs_dim),
                           scale=self.obs_noise_scale / root_two).to_event(1)
         elif self.obs_noise == "skew":
-            return Stable(self.obs_stability, self.obs_skew * torch.ones(self.obs_dim),
+            return Stable(self.obs_stability, self.obs_skew,
                           scale=self.obs_noise_scale / root_two).to_event(1)
         elif self.obs_noise == "student":
             return StudentT(self.obs_nu, torch.zeros(self.obs_dim), self.obs_noise_scale).to_event(1)
@@ -71,7 +71,7 @@ class StableLinearHMM(PyroModule):
             return Stable(self.trans_stability, torch.zeros(self.state_dim),
                           scale=self.trans_noise_scale / root_two).to_event(1)
         elif self.trans_noise == "skew":
-            return Stable(self.trans_stability, self.trans_skew * torch.ones(self.state_dim),
+            return Stable(self.trans_stability, self.trans_skew,
                           scale=self.trans_noise_scale / root_two).to_event(1)
         elif self.trans_noise == "student":
             return StudentT(self.trans_nu, torch.zeros(self.state_dim), self.trans_noise_scale).to_event(1)
@@ -133,6 +133,7 @@ class Model(ForecastingModel):
 
 
 def main(**args):
+    # torch.cuda.set_device(0)
     log_file = '{}.{}.{}.tt_{}_{}.nw_{}.sd_{}.nst_{}.cn_{:.1f}.lr_{:.2f}.lrd_{:.2f}.seed_{}.{}.log'
     log_file = log_file.format(args['dataset'], args['trans_noise'], args['obs_noise'],
                                args['train_window'], args['test_window'], args['num_windows'],
@@ -196,7 +197,6 @@ def main(**args):
         log("{} = {:0.4g} +- {:0.4g}".format(name, mean, std))
     for name in ["mae_fine", "crps_fine"]:
         values = np.stack([m[name] for m in metrics])
-        expected = (args['num_windows'] - 1) * args['test_window'] + 1
         results[name] = values
         for t in range(values.shape[1]):
             metric_t = name[:-5] + '_{}'.format(t + 1)
