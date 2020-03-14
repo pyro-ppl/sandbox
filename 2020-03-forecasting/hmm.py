@@ -181,6 +181,12 @@ def main(**args):
                        forecaster_options=svi_forecaster_options,
                        forecaster_fn=Forecaster)
 
+    num_eval_windows = (args['num_windows'] - 1) * args['test_window'] + 1
+    pyro.set_rng_seed(0)
+    index = torch.randperm(num_eval_windows)
+    index_test = index[:math.ceil(0.80 * num_eval_windows)].data.cpu().numpy()
+    index_val = index[math.ceil(0.80 * num_eval_windows):].data.cpu().numpy()
+
     log("### EVALUATION ###")
     for name in ["mae", "crps"]:
         values = [m[name] for m in metrics]
@@ -190,14 +196,28 @@ def main(**args):
         log("{} = {:0.4g} +- {:0.4g}".format(name, mean, std))
     for name in ["mae_fine", "crps_fine"]:
         values = np.stack([m[name] for m in metrics])
+        expected = (args['num_windows'] - 1) * args['test_window'] + 1
         results[name] = values
         for t in range(values.shape[1]):
+            metric_t = name[:-5] + '_{}'.format(t + 1)
+
             mean = np.mean(values[:, t, :])
             std = np.std(values[:, t, :])
-            metric_t = name[:-5] + '_{}'.format(t + 1)
             results[metric_t] = mean
             results[metric_t + '_std'] = std
             log("{} = {:0.4g} +- {:0.4g}".format(metric_t, mean, std))
+
+            mean = np.mean(values[index_val, t, :])
+            std = np.std(values[index_val, t, :])
+            results[metric_t + '_val'] = mean
+            results[metric_t + '_val_std'] = std
+            log("{} = {:0.4g} +- {:0.4g}".format(metric_t + '_val', mean, std))
+
+            mean = np.mean(values[index_test, t, :])
+            std = np.std(values[index_test, t, :])
+            results[metric_t + '_test'] = mean
+            results[metric_t + '_test_std'] = std
+            log("{} = {:0.4g} +- {:0.4g}".format(metric_t + '_test', mean, std))
 
     pred = np.stack([m['pred'].data.cpu().numpy() for m in metrics])
     results['pred'] = pred
@@ -223,13 +243,13 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", default='metals', type=str)
     parser.add_argument("--data-dir", default='./data/', type=str)
     parser.add_argument("--log-dir", default='./logs/', type=str)
-    parser.add_argument("--train-window", default=1000, type=int)
+    parser.add_argument("--train-window", default=200, type=int)
     parser.add_argument("--test-window", default=5, type=int)
-    parser.add_argument("--num-windows", default=1, type=int)
-    parser.add_argument("--stride", default=5, type=int)
+    parser.add_argument("--num-windows", default=2, type=int)
+    parser.add_argument("--stride", default=1, type=int)
     parser.add_argument("--num-eval-samples", default=2500, type=int)
     parser.add_argument("--clip-norm", default=10.0, type=float)
-    parser.add_argument("-n", "--num-steps", default=200, type=int)
+    parser.add_argument("-n", "--num-steps", default=2, type=int)
     parser.add_argument("-d", "--state-dim", default=5, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.3, type=float)
     parser.add_argument("-lrd", "--learning-rate-decay", default=0.01, type=float)
