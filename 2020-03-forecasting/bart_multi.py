@@ -21,6 +21,17 @@ if not os.path.exists(RESULTS):
     os.makedirs(RESULTS)
 
 
+def _safe_transpose(tensor, dim1, dim2):
+    """
+    Transposes two tensor dims, expanding ``tensor.shape`` by 1's on the left
+    as needed.
+    """
+    assert dim1 < 0 and dim2 < 0
+    if tensor.dim() < -min(dim1, dim2):
+        tensor = tensor.reshape((1,) * (-min(dim1, dim2) - tensor.dim()) + tensor.shape)
+    return tensor.transpose(dim1, dim2)
+
+
 class Model(ForecastingModel):
     def __init__(self, dist_type):
         super().__init__()
@@ -52,48 +63,33 @@ class Model(ForecastingModel):
             origin_scale = pyro.sample("origin_scale", dist.LogNormal(-5, 5))
             with hour_of_week_plate:
                 origin_seasonal = pyro.sample("origin_seasonal", dist.Normal(0, 5))
-            with self.time_plate:
-                if self.dist_type == "normal":
-                    with poutine.reparam(config={"origin_drift": LocScaleReparam()}):
-                        origin_drift = pyro.sample("origin_drift", dist.Normal(0, trans_scale))
-                elif self.dist_type == "stable":
-                    with poutine.reparam(config={"origin_drift": LocScaleReparam()}):
-                        with poutine.reparam(config={"origin_drift": SymmetricStableReparam()}):
-                            origin_drift = pyro.sample(
-                                "origin_drift", dist.Stable(trans_stability, 0, trans_scale))
-                elif self.dist_type == "studentt":
-                    with poutine.reparam(config={"origin_drift": LocScaleReparam(shape_params=["df"])}):
-                        origin_drift = pyro.sample(
-                            "origin_drift", dist.StudentT(trans_dof, 0, trans_scale))
-                else:
-                    raise ValueError(self.dist_type)
         with destin_plate:
             destin_scale = pyro.sample("destin_scale", dist.LogNormal(-5, 5))
             with hour_of_week_plate:
                 destin_seasonal = pyro.sample("destin_seasonal", dist.Normal(0, 5))
             with self.time_plate:
                 if self.dist_type == "normal":
-                    with poutine.reparam(config={"destin_drift": LocScaleReparam()}):
-                        destin_drift = pyro.sample("destin_drift", dist.Normal(0, trans_scale))
+                    with poutine.reparam(config={"drift": LocScaleReparam()}):
+                        drift = pyro.sample("drift", dist.Normal(0, trans_scale))
                 elif self.dist_type == "stable":
-                    with poutine.reparam(config={"destin_drift": LocScaleReparam()}):
-                        with poutine.reparam(config={"destin_drift": SymmetricStableReparam()}):
-                            destin_drift = pyro.sample(
-                                "destin_drift", dist.Stable(trans_stability, 0, trans_scale))
+                    with poutine.reparam(config={"drift": LocScaleReparam()}):
+                        with poutine.reparam(config={"drift": SymmetricStableReparam()}):
+                            drift = pyro.sample(
+                                "drift", dist.Stable(trans_stability, 0, trans_scale))
                 elif self.dist_type == "studentt":
-                    with poutine.reparam(config={"destin_drift": LocScaleReparam(shape_params=["df"])}):
-                        destin_drift = pyro.sample(
-                            "destin_drift", dist.StudentT(trans_dof, 0, trans_scale))
+                    with poutine.reparam(config={"drift": LocScaleReparam(shape_params=["df"])}):
+                        drift = pyro.sample(
+                            "drift", dist.StudentT(trans_dof, 0, trans_scale))
                 else:
                     raise ValueError(self.dist_type)
         with origin_plate, destin_plate:
             pairwise = pyro.sample("pairwise", dist.Normal(0, 1))
 
         # Form prediction.
-        destin_prediction = (destin_drift.cumsum(dim=-1) +
-                             periodic_repeat(destin_seasonal, duration, dim=-1))
-        origin_prediction = (origin_drift.cumsum(dim=-1) +
-                             periodic_repeat(origin_seasonal, duration, dim=-1))
+        destin_motion = drift.cumsum(dim=-1)
+        origin_motion = _safe_transpose(destin_motion, destin_plate.dim, origin_plate.dim)
+        destin_prediction = destin_motion + periodic_repeat(destin_seasonal, duration, dim=-1)
+        origin_prediction = origin_motion + periodic_repeat(origin_seasonal, duration, dim=-1)
         assert destin_prediction.shape[-2:] == (destin_plate.subsample_size, duration)
         assert origin_prediction.shape[-3:] == (origin_plate.subsample_size, 1, duration)
         prediction = destin_prediction + origin_prediction + pairwise  # Note the broadcast.
@@ -135,8 +131,13 @@ def main(args):
 
     def create_plates(zero_data, covariates):
         num_origins, num_destins, duration, one = zero_data.shape
-        return [pyro.plate("origin", num_origins, subsample_size=10, dim=-3),
-                pyro.plate("destin", num_destins, subsample_size=10, dim=-2)]
+        origin_plate = pyro.plate("origin", num_origins, subsample_size=10, dim=-3)
+        # We reuse the subsample so that both plates are subsampled identically.
+        with origin_plate as subsample:
+            print("subsample.shape = {}".format(subsample.shape))
+            pass
+        destin_plate = pyro.plate("destin", num_destins, subsample=subsample, dim=-2)
+        return origin_plate, destin_plate
 
     forecaster_options = {
         "create_plates": create_plates,
