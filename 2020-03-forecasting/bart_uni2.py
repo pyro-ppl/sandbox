@@ -148,7 +148,7 @@ if __name__ == "__main__":
     parser.add_argument("--min-train-window", default=4 * 365 * 24, type=int)
     parser.add_argument("--test-window", default=4 * 7 * 24, type=int)
     parser.add_argument("-s", "--stride", default=30 * 24, type=int)
-    parser.add_argument("-b", "--batch-size", default=20, type=int)
+    parser.add_argument("-b", "--batch-size", default=10, type=int)
     parser.add_argument("-n", "--num-steps", default=2001, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.1, type=float)
     parser.add_argument("--clip-norm", default=50, type=float)
