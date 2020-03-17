@@ -131,10 +131,9 @@ def main(args):
 
     def create_plates(zero_data, covariates):
         num_origins, num_destins, duration, one = zero_data.shape
-        origin_plate = pyro.plate("origin", num_origins, subsample_size=10, dim=-3)
+        origin_plate = pyro.plate("origin", num_origins, subsample_size=16, dim=-3)
         # We reuse the subsample so that both plates are subsampled identically.
         with origin_plate as subsample:
-            print("subsample.shape = {}".format(subsample.shape))
             pass
         destin_plate = pyro.plate("destin", num_destins, subsample=subsample, dim=-2)
         return origin_plate, destin_plate
@@ -180,7 +179,7 @@ if __name__ == "__main__":
     parser.add_argument("--train-window", default=24 * 90, type=int)
     parser.add_argument("--test-window", default=24 * 14, type=int)
     parser.add_argument("-s", "--stride", default=24 * 100, type=int)
-    parser.add_argument("-b", "--batch-size", default=20, type=int)
+    parser.add_argument("-b", "--batch-size", default=10, type=int)
     parser.add_argument("-n", "--num-steps", default=2001, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.1, type=float)
     parser.add_argument("-l", "--log-every", default=50, type=int)
