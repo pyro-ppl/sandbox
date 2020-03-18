@@ -124,7 +124,7 @@ def get_data(args=None):
     for dim in range(data.size(-1)):
         night_features[:, dim] = extract_night_features(data[:, dim])
 
-    to_drop = 13 * 24 * 60 - 1
+    to_drop = 194 * 24 * 60 - 1
     to_keep = args['train_window'] + args['num_windows'] * args['test_window']
     assert to_keep + to_drop <= data.size(0)
 
@@ -293,8 +293,8 @@ def main(**args):
             results[name] = value.data.cpu().numpy()
             print("[{}]".format(name), value.data.cpu().numpy())
 
-    #with open(args['log_dir'] + '/' + log_file[:-4] + '.pkl', 'wb') as f:
-    #    pickle.dump(results, f, protocol=2)
+    with open(args['log_dir'] + '/' + log_file[:-4] + '.pkl', 'wb') as f:
+        pickle.dump(results, f, protocol=2)
 
     log("[ELAPSED TIME]: {:.3f}".format(time.time() - t0))
 
@@ -307,10 +307,10 @@ if __name__ == "__main__":
     parser.add_argument("--data-dir", default='./data/', type=str)
     parser.add_argument("--log-dir", default='./logs/', type=str)
     parser.add_argument("--train-window", default=92 * 24 * 60, type=int)
-    parser.add_argument("--test-window", default=60, type=int)
-    parser.add_argument("--num-windows", default=12, type=int)
-    parser.add_argument("--stride", default=60, type=int)
-    parser.add_argument("--num-eval-samples", default=2, type=int)
+    parser.add_argument("--test-window", default=24 * 60, type=int)
+    parser.add_argument("--num-windows", default=1, type=int)
+    parser.add_argument("--stride", default=24 * 60, type=int)
+    parser.add_argument("--num-eval-samples", default=500, type=int)
     parser.add_argument("--clip-norm", default=10.0, type=float)
     parser.add_argument("-n", "--num-steps", default=1000, type=int)
     parser.add_argument("-d", "--state-dim", default=6, type=int)
