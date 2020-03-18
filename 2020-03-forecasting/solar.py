@@ -173,7 +173,7 @@ class Model(ForecastingModel):
         day_covariates = 1.0 - night_covariates
 
         mean_granularity = 24 * 6
-        hour = torch.arange(mean_granularity).repeat(covariates.size(0) // mean_granularity)
+        hour = torch.arange(mean_granularity).repeat(1 + covariates.size(0) // mean_granularity)[:covariates.size(0)]
         daily_weights = pyro.sample("daily_weights", Normal(0, 0.1).expand([short_covariates.size(-1), self.obs_dim]).to_event(2))
 
         night_scale = pyro.param("night_scale", 0.1 * torch.ones(zero_data.size(-1)), constraint=constraints.positive)
@@ -307,10 +307,10 @@ if __name__ == "__main__":
     parser.add_argument("--data-dir", default='./data/', type=str)
     parser.add_argument("--log-dir", default='./logs/', type=str)
     parser.add_argument("--train-window", default=92 * 24 * 60, type=int)
-    parser.add_argument("--test-window", default=5 * 24 * 60, type=int)
-    parser.add_argument("--num-windows", default=1, type=int)
-    parser.add_argument("--stride", default=5 * 24 * 60, type=int)
-    parser.add_argument("--num-eval-samples", default=200, type=int)
+    parser.add_argument("--test-window", default=60, type=int)
+    parser.add_argument("--num-windows", default=12, type=int)
+    parser.add_argument("--stride", default=60, type=int)
+    parser.add_argument("--num-eval-samples", default=2, type=int)
     parser.add_argument("--clip-norm", default=10.0, type=float)
     parser.add_argument("-n", "--num-steps", default=1000, type=int)
     parser.add_argument("-d", "--state-dim", default=6, type=int)
