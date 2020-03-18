@@ -9,6 +9,7 @@ import numpy as np
 import math
 import torch
 import torch.distributions.constraints as constraints
+from torch.nn.functional import softplus
 
 import pyro
 from pyro.contrib.forecast import ForecastingModel, backtest, Forecaster
@@ -23,7 +24,7 @@ from pyro.ops.tensor_utils import periodic_cumsum, periodic_features, periodic_r
 
 
 root_two = math.sqrt(2.0)
-num_stations = 5
+num_stations = 1
 day = 24 * 60
 
 
@@ -83,10 +84,9 @@ class StableLinearHMM(PyroModule):
 
     def get_dist(self, duration=None, obs_scale=None, obs_matrix_multiplier=None):
         obs_matrix = self.obs_matrix.repeat_interleave(day, dim=-1)
-        print("obs_matrix", obs_matrix.shape)
-        print("obs_matrix_multiplier",obs_matrix_multiplier.shape)
-        print("obs_scale", obs_scale.shape)
-        print("duration", duration)
+        #print("obs_matrix", obs_matrix.shape)
+        #print("obs_matrix_multiplier",obs_matrix_multiplier.shape)
+        #print("obs_scale", obs_scale.shape)
         return LinearHMM(self._get_init_dist(), self.trans_matrix, self._get_trans_dist(),
                          obs_matrix_multiplier * obs_matrix, self._get_obs_dist(obs_scale), duration=duration)
 
@@ -124,6 +124,7 @@ def extract_night_features(data):
 
 def get_data(args=None):
     data, _, _, _ = get_raw_data(args['dataset'], args['data_dir'])
+    data = data[..., :num_stations]
     print("raw data", data.shape)
 
     night_features = torch.zeros(data.shape)
@@ -159,6 +160,7 @@ class Model(ForecastingModel):
         self.nightval = nightval
         self.hmm = StableLinearHMM(obs_dim=obs_dim, trans_noise=trans_noise, obs_noise=obs_noise, state_dim=state_dim)
         trans, obs = None, None
+
         self.mean_granularity = 24 * 6
         self.night_scale = PyroParam(0.1 * torch.ones(num_stations), constraint=constraints.positive)
         self.obs_scale = PyroParam(0.2 * torch.ones(self.mean_granularity, num_stations), constraint=constraints.positive)
@@ -183,31 +185,33 @@ class Model(ForecastingModel):
         short_covariates = covariates[:, self.obs_dim:]
         night_covariates = night_covariates.reshape(night_covariates.size(0) * day, num_stations)
         short_covariates = short_covariates.reshape(short_covariates.size(0) * day, short_covariates.size(-1) // day)
-        print("short_covariates, night_covariates", short_covariates.shape, night_covariates.shape)
+        #print("short_covariates, night_covariates", short_covariates.shape, night_covariates.shape)
         day_covariates = 1.0 - night_covariates
         T_minutes = short_covariates.size(0)
 
         hour = torch.arange(self.mean_granularity).repeat(1 + T_minutes // self.mean_granularity)[:T_minutes]
         daily_weights = pyro.sample("daily_weights", Normal(0, 0.1).expand([short_covariates.size(-1), num_stations]).to_event(2))
-        print("daily_weights", daily_weights.shape)
+        #print("daily_weights", daily_weights.shape)
 
         obs_scale = self.obs_scale.index_select(0, hour)
-        print("obs_scale", obs_scale.shape)
+        #print("obs_scale", obs_scale.shape)
         obs_scale = day_covariates * obs_scale + night_covariates * self.night_scale
         obs_scale = obs_scale.reshape(obs_scale.size(0) // day, self.obs_dim)
-        print("obs_scale2", obs_scale.shape)
+        #print("obs_scale2", obs_scale.shape)
 
         periodic = torch.einsum('...fs,tf->...ts', daily_weights, short_covariates)
         if periodic.dim() > 3:
             periodic = periodic.squeeze(-3)
-        print("periodic", periodic.shape)
+        #print("periodic", periodic.shape)
 
         periodic = day_covariates * periodic + night_covariates * self.nightval
-        print("periodic", periodic.shape)
+        #print("periodic", periodic.shape)
         periodic = periodic.reshape(periodic.shape[:-2] + (periodic.size(-2) // day, self.obs_dim))
-        print("periodic2", periodic.shape)
+        if periodic.dim() == 3:
+            periodic = periodic.squeeze(0)
+        #print("periodic2", periodic.shape)
         obs_matrix_multiplier = day_covariates.reshape(day_covariates.size(0) // day, self.obs_dim).unsqueeze(-2)
-        print("obs_matrix_multiplier", obs_matrix_multiplier.shape)
+        #print("obs_matrix_multiplier", obs_matrix_multiplier.shape)
 
         hmm = self.hmm.get_dist(duration=zero_data.size(-2), obs_scale=obs_scale,
                                 obs_matrix_multiplier=obs_matrix_multiplier)
@@ -252,7 +256,15 @@ def main(**args):
                 "num_particles": 1}
 
     data, covariates = get_data(args=args)
+    #data = data.log1p()
+    #data = torch.nn.functional.softplus(data)
+    data = data.expm1().log()
     results = {}
+
+    def transform(pred, truth):
+         return softplus(pred), softplus(truth)
+         #return pred.expm1().clamp(min=1.0e-8).log(), truth.expm1().clamp(min=1.0e-8).log()
+#        return pred.expm1().clamp(min=0.0), truth.expm1()
 
     metrics = backtest(data, covariates,
                        lambda: Model(trans_noise=args['trans_noise'], state_dim=args['state_dim'],
@@ -264,6 +276,7 @@ def main(**args):
                        stride=args['stride'],
                        num_samples=args['num_eval_samples'],
                        batch_size=1,
+                       transform=transform,
                        forecaster_options=svi_forecaster_options,
                        forecaster_fn=Forecaster)
 
@@ -329,13 +342,13 @@ if __name__ == "__main__":
     parser.add_argument("--data-dir", default='./data/', type=str)
     parser.add_argument("--log-dir", default='./logs/', type=str)
     parser.add_argument("--train-window", default=92, type=int)
-    parser.add_argument("--test-window", default=1, type=int)
+    parser.add_argument("--test-window", default=5, type=int)
     parser.add_argument("--num-windows", default=1, type=int)
     parser.add_argument("--stride", default=day, type=int)
-    parser.add_argument("--num-eval-samples", default=10, type=int)
+    parser.add_argument("--num-eval-samples", default=300, type=int)
     parser.add_argument("--clip-norm", default=10.0, type=float)
     parser.add_argument("-n", "--num-steps", default=1000, type=int)
-    parser.add_argument("-d", "--state-dim", default=6, type=int)
+    parser.add_argument("-d", "--state-dim", default=num_stations + 1, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.03, type=float)
     parser.add_argument("-lrd", "--learning-rate-decay", default=0.003, type=float)
     parser.add_argument("--plot", action="store_true")
