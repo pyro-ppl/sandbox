@@ -24,7 +24,7 @@ from pyro.ops.tensor_utils import periodic_cumsum, periodic_features, periodic_r
 
 
 root_two = math.sqrt(2.0)
-num_stations = 1
+num_stations = 5
 day = 24 * 60
 
 
@@ -324,8 +324,8 @@ def main(**args):
             results[metric_t + '_test_std'] = std
             log("{} = {:0.4g} +- {:0.4g}".format(metric_t + '_test', mean, std))
 
-    #pred = np.stack([m['pred'].data.cpu().numpy() for m in metrics])
-    #results['pred'] = pred
+    pred = np.stack([m['pred'].data.cpu().numpy() for m in metrics])
+    results['pred'] = pred
 
     for name, value in pyro.get_param_store().items():
         if value.numel() == 1:
@@ -352,9 +352,9 @@ if __name__ == "__main__":
     parser.add_argument("--test-window", default=1, type=int)
     parser.add_argument("--num-windows", default=1, type=int)
     parser.add_argument("--stride", default=1, type=int)
-    parser.add_argument("--num-eval-samples", default=500, type=int)
+    parser.add_argument("--num-eval-samples", default=50, type=int)
     parser.add_argument("--clip-norm", default=10.0, type=float)
-    parser.add_argument("-n", "--num-steps", default=50, type=int)
+    parser.add_argument("-n", "--num-steps", default=800, type=int)
     parser.add_argument("-d", "--state-dim", default=num_stations + 1, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.03, type=float)
     parser.add_argument("--alpha", default=1.0, type=float)

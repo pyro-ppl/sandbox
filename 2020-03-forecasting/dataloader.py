@@ -92,7 +92,7 @@ def get_data(dataset, datadir):
         data = torch.tensor(np.load(datadir + 'nepal.solar.dni.npz')['arr_0'])#[-100000:]
         data_mean, data_std = data.mean(0), data.std(0)
         data = (data - data_mean) / data_std
-        data = data - data.min()
+        data = data - data.min() + 0.01
     elif dataset=='dow':
         # https://fred.stlouisfed.org/categories/32255/downloaddata
         data = torch.tensor(np.load(datadir + '/dow.npy'))
