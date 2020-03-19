@@ -9,7 +9,7 @@ import numpy as np
 import math
 import torch
 import torch.distributions.constraints as constraints
-from torch.nn.functional import softplus
+#from torch.nn.functional import softplus
 
 import pyro
 from pyro.contrib.forecast import ForecastingModel, backtest, Forecaster
@@ -36,7 +36,7 @@ class StableLinearHMM(PyroModule):
         self.obs_dim = obs_dim
         print("Initialized StableLinearHMM with state_dim = {}, obs_dim = {}".format(state_dim, obs_dim))
         assert trans_noise in ['gaussian', 'stable', 'student', 'skew']
-        assert obs_noise == 'gaussian'
+        assert obs_noise in ['gaussian', 'stable', 'student', 'skew']
         super().__init__()
         #self.obs_noise_scale = PyroParam(0.2 * torch.ones(obs_dim), constraint=constraints.positive)
         self.trans_noise_scale = PyroParam(0.2 * torch.ones(state_dim), constraint=constraints.positive)
@@ -59,16 +59,16 @@ class StableLinearHMM(PyroModule):
         return Normal(torch.zeros(self.state_dim), torch.ones(self.state_dim)).to_event(1)
 
     def _get_obs_dist(self, obs_scale=None):
-        #if self.obs_noise == "stable":
-        #    return Stable(self.obs_stability, torch.zeros(self.obs_dim),
-        #                  scale=self.obs_noise_scale / root_two).to_event(1)
-        #elif self.obs_noise == "skew":
-        #    return Stable(self.obs_stability, self.obs_skew,
-        #                  scale=self.obs_noise_scale / root_two).to_event(1)
-        #elif self.obs_noise == "student":
-        #    return StudentT(self.obs_nu, torch.zeros(self.obs_dim), self.obs_noise_scale).to_event(1)
-        #else:
-        return Normal(torch.zeros(self.obs_dim), scale=obs_scale).to_event(1)
+        if self.obs_noise == "stable":
+            return Stable(self.obs_stability, torch.zeros(self.obs_dim),
+                          scale=obs_scale / root_two).to_event(1)
+        elif self.obs_noise == "skew":
+            return Stable(self.obs_stability, self.obs_skew,
+                          scale=obs_scale / root_two).to_event(1)
+        elif self.obs_noise == "student":
+            return StudentT(self.obs_nu, torch.zeros(self.obs_dim), obs_scale).to_event(1)
+        else:
+            return Normal(torch.zeros(self.obs_dim), scale=obs_scale).to_event(1)
 
     def _get_trans_dist(self):
         if self.trans_noise == "stable":
@@ -158,6 +158,7 @@ class Model(ForecastingModel):
         self.trans_noise = trans_noise
         self.obs_noise = obs_noise
         self.nightval = nightval
+        print("nightval", nightval)
         self.hmm = StableLinearHMM(obs_dim=obs_dim, trans_noise=trans_noise, obs_noise=obs_noise, state_dim=state_dim)
         trans, obs = None, None
 
@@ -207,8 +208,8 @@ class Model(ForecastingModel):
         periodic = day_covariates * periodic + night_covariates * self.nightval
         #print("periodic", periodic.shape)
         periodic = periodic.reshape(periodic.shape[:-2] + (periodic.size(-2) // day, self.obs_dim))
-        if periodic.dim() == 3:
-            periodic = periodic.squeeze(0)
+        #if periodic.dim() == 3:
+        #    periodic = periodic.squeeze(0)
         #print("periodic2", periodic.shape)
         obs_matrix_multiplier = day_covariates.reshape(day_covariates.size(0) // day, self.obs_dim).unsqueeze(-2)
         #print("obs_matrix_multiplier", obs_matrix_multiplier.shape)
@@ -222,8 +223,9 @@ class Model(ForecastingModel):
 
 def main(**args):
     #torch.cuda.set_device(0)
-    log_file = '{}.{}.{}.tt_{}_{}.nw_{}.sd_{}.nst_{}.cn_{:.1f}.lr_{:.2f}.lrd_{:.2f}.seed_{}.{}.log'
+    log_file = '{}.{}.{}.alpha_{:.1f}.tt_{}_{}.nw_{}.sd_{}.nst_{}.cn_{:.1f}.lr_{:.2f}.lrd_{:.2f}.seed_{}.{}.log'
     log_file = log_file.format(args['dataset'], args['trans_noise'], args['obs_noise'],
+                               args['alpha'],
                                args['train_window'], args['test_window'], args['num_windows'],
                                args['state_dim'], args['num_steps'],
                                args['clip_norm'], args['learning_rate'], args['learning_rate_decay'],
@@ -255,10 +257,15 @@ def main(**args):
                 "vectorize_particles": False,
                 "num_particles": 1}
 
+    def softplus(x, alpha=args['alpha']):
+        return torch.nn.functional.softplus(alpha * x) / alpha
+
+    def softplus_inverse(x, alpha=args['alpha']):
+        return (alpha * x).expm1().log() / alpha
+
     data, covariates = get_data(args=args)
-    #data = data.log1p()
     #data = torch.nn.functional.softplus(data)
-    data = data.expm1().log()
+    data = softplus_inverse(data)
     results = {}
 
     def transform(pred, truth):
@@ -275,16 +282,18 @@ def main(**args):
                        test_window=args['test_window'],
                        stride=args['stride'],
                        num_samples=args['num_eval_samples'],
-                       batch_size=1,
+                       batch_size=2,
                        transform=transform,
                        forecaster_options=svi_forecaster_options,
                        forecaster_fn=Forecaster)
 
     num_eval_windows = (args['num_windows'] - 1) * args['test_window'] + 1
+    print("num_eval_windows", num_eval_windows)
     pyro.set_rng_seed(0)
     index = torch.randperm(num_eval_windows)
     index_test = index[:math.ceil(0.80 * num_eval_windows)].data.cpu().numpy()
     index_val = index[math.ceil(0.80 * num_eval_windows):].data.cpu().numpy()
+    print("index_test, index_val", index_test.shape, index_val.shape)
 
     log("### EVALUATION ###")
     for name in ["mae", "crps"]:
@@ -293,7 +302,7 @@ def main(**args):
         results[name] = mean
         results[name + '_std'] = std
         log("{} = {:0.4g} +- {:0.4g}".format(name, mean, std))
-    for name in []:
+    for name in ["mae_fine", "crps_fine"]:
         values = np.stack([m[name] for m in metrics])
         results[name] = values
         for t in range(values.shape[1]):
@@ -317,8 +326,8 @@ def main(**args):
             results[metric_t + '_test_std'] = std
             log("{} = {:0.4g} +- {:0.4g}".format(metric_t + '_test', mean, std))
 
-    pred = np.stack([m['pred'].data.cpu().numpy() for m in metrics])
-    results['pred'] = pred
+    #pred = np.stack([m['pred'].data.cpu().numpy() for m in metrics])
+    #results['pred'] = pred
 
     for name, value in pyro.get_param_store().items():
         if value.numel() == 1:
@@ -328,28 +337,29 @@ def main(**args):
             results[name] = value.data.cpu().numpy()
             print("[{}]".format(name), value.data.cpu().numpy())
 
-    #with open(args['log_dir'] + '/' + log_file[:-4] + '.pkl', 'wb') as f:
-    #    pickle.dump(results, f, protocol=2)
+    with open(args['log_dir'] + '/' + log_file[:-4] + '.pkl', 'wb') as f:
+        pickle.dump(results, f, protocol=2)
 
     log("[ELAPSED TIME]: {:.3f}".format(time.time() - t0))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multivariate timeseries models")
-    parser.add_argument("--trans-noise", default='student', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
+    parser.add_argument("--trans-noise", default='gaussian', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
     parser.add_argument("--obs-noise", default='gaussian', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
     parser.add_argument("--dataset", default='solar', type=str)
     parser.add_argument("--data-dir", default='./data/', type=str)
     parser.add_argument("--log-dir", default='./logs/', type=str)
     parser.add_argument("--train-window", default=92, type=int)
-    parser.add_argument("--test-window", default=5, type=int)
-    parser.add_argument("--num-windows", default=1, type=int)
-    parser.add_argument("--stride", default=day, type=int)
-    parser.add_argument("--num-eval-samples", default=300, type=int)
+    parser.add_argument("--test-window", default=1, type=int)
+    parser.add_argument("--num-windows", default=5, type=int)
+    parser.add_argument("--stride", default=1, type=int)
+    parser.add_argument("--num-eval-samples", default=250, type=int)
     parser.add_argument("--clip-norm", default=10.0, type=float)
-    parser.add_argument("-n", "--num-steps", default=1000, type=int)
+    parser.add_argument("-n", "--num-steps", default=10, type=int)
     parser.add_argument("-d", "--state-dim", default=num_stations + 1, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.03, type=float)
+    parser.add_argument("--alpha", default=1.0, type=float)
     parser.add_argument("-lrd", "--learning-rate-decay", default=0.003, type=float)
     parser.add_argument("--plot", action="store_true")
     parser.add_argument("--log-every", default=20, type=int)
