@@ -282,18 +282,16 @@ def main(**args):
                        test_window=args['test_window'],
                        stride=args['stride'],
                        num_samples=args['num_eval_samples'],
-                       batch_size=2,
+                       batch_size=50,
                        transform=transform,
                        forecaster_options=svi_forecaster_options,
                        forecaster_fn=Forecaster)
 
     num_eval_windows = (args['num_windows'] - 1) * args['test_window'] + 1
-    print("num_eval_windows", num_eval_windows)
     pyro.set_rng_seed(0)
     index = torch.randperm(num_eval_windows)
     index_test = index[:math.ceil(0.80 * num_eval_windows)].data.cpu().numpy()
     index_val = index[math.ceil(0.80 * num_eval_windows):].data.cpu().numpy()
-    print("index_test, index_val", index_test.shape, index_val.shape)
 
     log("### EVALUATION ###")
     for name in ["mae", "crps"]:
@@ -352,17 +350,17 @@ if __name__ == "__main__":
     parser.add_argument("--log-dir", default='./logs/', type=str)
     parser.add_argument("--train-window", default=92, type=int)
     parser.add_argument("--test-window", default=1, type=int)
-    parser.add_argument("--num-windows", default=5, type=int)
+    parser.add_argument("--num-windows", default=1, type=int)
     parser.add_argument("--stride", default=1, type=int)
-    parser.add_argument("--num-eval-samples", default=250, type=int)
+    parser.add_argument("--num-eval-samples", default=500, type=int)
     parser.add_argument("--clip-norm", default=10.0, type=float)
-    parser.add_argument("-n", "--num-steps", default=10, type=int)
+    parser.add_argument("-n", "--num-steps", default=50, type=int)
     parser.add_argument("-d", "--state-dim", default=num_stations + 1, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.03, type=float)
     parser.add_argument("--alpha", default=1.0, type=float)
     parser.add_argument("-lrd", "--learning-rate-decay", default=0.003, type=float)
     parser.add_argument("--plot", action="store_true")
-    parser.add_argument("--log-every", default=20, type=int)
+    parser.add_argument("--log-every", default=10, type=int)
     parser.add_argument("--seed", default=0, type=int)
     args = parser.parse_args()
 
