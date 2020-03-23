@@ -161,9 +161,9 @@ class GuideConv(nn.Module):
             h = self.fc2(self.relu(self.fc(self.relu(h))))
         if self.distribution == 'gamma':
             h = nn.functional.softplus(h)
-            return h[:, :self.gamma_variates], h[:, self.gamma_variates:]
+            return h[:, :self.gamma_variates].clamp(min=0.1), h[:, self.gamma_variates:].clamp(min=0.1)
         else:
-            return h[:, :self.gamma_variates], nn.functional.softplus(h[:, self.gamma_variates:])
+            return h[:, :self.gamma_variates], nn.functional.softplus(h[:, self.gamma_variates:]).clamp(min=0.01)
 
 
 def main(**args):
@@ -239,7 +239,7 @@ def main(**args):
                        stride=args['stride'],
                        num_samples=args['num_eval_samples'],
                        batch_size=1000,
-                       amortized=True if args['guide']=='custom' else None,
+                       amortized=True if args['guide']!='auto' else None,
                        forecaster_options=svi_forecaster_options,
                        forecaster_fn=Forecaster)
 
@@ -299,25 +299,25 @@ def main(**args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multivariate timeseries models")
-    parser.add_argument("--trans-noise", default='gaussian', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
-    parser.add_argument("--obs-noise", default='student', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
+    parser.add_argument("--trans-noise", default='student', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
+    parser.add_argument("--obs-noise", default='gaussian', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
     parser.add_argument("--dataset", default='metals', type=str)
-    parser.add_argument("--guide", default='custom', type=str, choices=['customgamma', 'customnormal', 'auto'])
+    parser.add_argument("--guide", default='customgamma', type=str, choices=['customgamma', 'customnormal', 'auto'])
     parser.add_argument("--data-dir", default='./data/', type=str)
     parser.add_argument("--log-dir", default='./logs/', type=str)
     parser.add_argument("--train-window", default=1000, type=int)
     parser.add_argument("--test-window", default=5, type=int)
     parser.add_argument("--num-windows", default=2, type=int)
     parser.add_argument("--num-channels", default=8, type=int)
-    parser.add_argument("--kernel_size", default=10, type=int)
-    parser.add_argument("--hidden-dim", default=40, type=int)
+    parser.add_argument("--kernel_size", default=8, type=int)
+    parser.add_argument("--hidden-dim", default=32, type=int)
     parser.add_argument("--num-layers", default=1, type=int)
     parser.add_argument("--stride", default=1, type=int)
     parser.add_argument("--num-eval-samples", default=1000, type=int)
     parser.add_argument("--clip-norm", default=10.0, type=float)
-    parser.add_argument("-n", "--num-steps", default=800, type=int)
+    parser.add_argument("-n", "--num-steps", default=1000, type=int)
     parser.add_argument("-d", "--state-dim", default=5, type=int)
-    parser.add_argument("-lr", "--learning-rate", default=0.01, type=float)
+    parser.add_argument("-lr", "--learning-rate", default=0.05, type=float)
     parser.add_argument("-lrd", "--learning-rate-decay", default=0.003, type=float)
     parser.add_argument("--plot", action="store_true")
     parser.add_argument("--cat-obs", action="store_true")
