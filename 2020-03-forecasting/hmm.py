@@ -9,12 +9,13 @@ import numpy as np
 import math
 import torch
 import torch.distributions.constraints as constraints
+import torch.nn as nn
 
 import pyro
 from pyro.contrib.forecast import ForecastingModel, backtest, Forecaster
 from pyro.nn import PyroParam, PyroModule
 from pyro.infer.reparam import SymmetricStableReparam, StudentTReparam, LinearHMMReparam, StableReparam
-from pyro.distributions import StudentT, Stable, Normal, LinearHMM
+from pyro.distributions import StudentT, Stable, Normal, LinearHMM, Gamma, LogNormal
 
 import pickle
 from dataloader import get_data as get_raw_data
@@ -99,7 +100,7 @@ def get_data(args=None):
 
     covariates = torch.zeros(data.size(0), 0)
 
-    return data.cuda(), covariates.cuda()
+    return data.double().cuda(), covariates.cuda()
 
 
 class Model(ForecastingModel):
@@ -132,14 +133,48 @@ class Model(ForecastingModel):
             self.predict(hmm, zero_data)
 
 
+class GuideConv(nn.Module):
+    def __init__(self, obs_dim=4, num_channels=5, kernel_size=10, hidden_dim=40, num_layers=1, cat_obs=False, gamma_variates=4, distribution="gamma"):
+        super().__init__()
+        self.obs_dim = obs_dim
+        self.kernel_size = kernel_size
+        self.num_layers = num_layers
+        self.cat_obs = cat_obs
+        self.gamma_variates = gamma_variates
+        self.distribution = distribution
+        nn_dim = num_channels if not cat_obs else num_channels + obs_dim
+        if num_layers == 1:
+            self.fc = nn.Linear(nn_dim, 2 * gamma_variates)
+        elif num_layers == 2:
+            self.fc = nn.Linear(nn_dim, hidden_dim)
+            self.fc2 = nn.Linear(hidden_dim, 2 * gamma_variates)
+        self.conv = nn.Conv1d(obs_dim, num_channels, kernel_size, stride=1, padding=kernel_size - 1)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        h = self.conv(x.t().unsqueeze(0))[:, :, :-(self.kernel_size - 1)].squeeze(0).t()
+        if self.cat_obs:
+            h = torch.cat([x, h], dim=-1)
+        if self.num_layers == 1:
+            h = self.fc(self.relu(h))
+        else:
+            h = self.fc2(self.relu(self.fc(self.relu(h))))
+        if self.distribution == 'gamma':
+            h = nn.functional.softplus(h)
+            return h[:, :self.gamma_variates], h[:, self.gamma_variates:]
+        else:
+            return h[:, :self.gamma_variates], nn.functional.softplus(h[:, self.gamma_variates:])
+
+
 def main(**args):
     # torch.cuda.set_device(0)
-    log_file = '{}.{}.{}.tt_{}_{}.nw_{}.sd_{}.nst_{}.cn_{:.1f}.lr_{:.2f}.lrd_{:.2f}.seed_{}.{}.log'
-    log_file = log_file.format(args['dataset'], args['trans_noise'], args['obs_noise'],
+    log_file = '{}.{}.{}.{}.tt_{}_{}.nw_{}.sd_{}.nst_{}.cn_{:.1f}.lr_{:.2f}.lrd_{:.2f}.seed_{}.arch_{}_{}_{}_{}_{}.{}.log'
+    log_file = log_file.format(args['dataset'], args['trans_noise'], args['obs_noise'], args['guide'],
                                args['train_window'], args['test_window'], args['num_windows'],
                                args['state_dim'], args['num_steps'],
                                args['clip_norm'], args['learning_rate'], args['learning_rate_decay'],
                                args['seed'],
+                               args['num_channels'], args['num_layers'], args['hidden_dim'], args['kernel_size'], args['cat_obs'],
                                str(uuid.uuid4())[0:4])
 
     log = get_logger(args['log_dir'], log_file, use_local_logger=False)
@@ -155,16 +190,41 @@ def main(**args):
 
     t0 = time.time()
 
+    guide_conv = None if args['guide'] == 'auto' else GuideConv(num_channels=args['num_channels'], kernel_size=args['kernel_size'],
+                                                                hidden_dim=args['hidden_dim'], num_layers=args['num_layers'],
+                                                                cat_obs=args['cat_obs'],
+                                                                gamma_variates=4 if args['obs_noise']=='student' else args['state_dim'],
+                                                                distribution=args['guide'][6:]).cuda()
+    if args['guide'][:6] == 'custom':
+        assert (args['trans_noise'] == 'student' and args['obs_noise'] == 'gaussian') or \
+               (args['trans_noise'] == 'gaussian' and args['obs_noise'] == 'student')
+
+    def guide(data, covariates, obs_dim=4):
+        T = covariates.size(0)
+        pyro.module("guide_conv", guide_conv)
+        alpha, beta = guide_conv(data)
+        if args['guide'] == 'customgamma':
+            if args['trans_noise'] == 'student':
+                pyro.sample("residual_trans_gamma", Gamma(alpha, beta).to_event(2))
+            elif args['obs_noise'] == 'student':
+                pyro.sample("residual_obs_gamma", Gamma(alpha, beta).to_event(2))
+        else:
+            if args['trans_noise'] == 'student':
+                pyro.sample("residual_trans_gamma", LogNormal(alpha, beta).to_event(2))
+            elif args['obs_noise'] == 'student':
+                pyro.sample("residual_obs_gamma", LogNormal(alpha, beta).to_event(2))
+
     def svi_forecaster_options(t0, t1, t2):
-        num_steps = args['num_steps']  # if t1 == args.train_window else 200
-        lr = args['learning_rate']  # if t1 == args.train_window else 0.1 * args.learning_rate
-        lrd = args['learning_rate_decay']  # if t1 == args.train_window else 0.1
+        num_steps = args['num_steps']  if t1 == args['train_window'] else 0
+        lr = args['learning_rate']  #if t1 == args.train_window else 0.1 * args.learning_rate
+        lrd = args['learning_rate_decay']  #if t1 == args.train_window else 0.1
         return {"num_steps": num_steps, "learning_rate": lr,
                 "learning_rate_decay": lrd, "log_every": args['log_every'],
                 "dct_gradients": False, "warm_start": False,
                 "clip_norm": args['clip_norm'],
                 "vectorize_particles": False,
-                "num_particles": 1}
+                "num_particles": 1,
+                "guide": None if args['guide'] == 'auto' else guide}
 
     data, covariates = get_data(args=args)
     results = {}
@@ -179,6 +239,7 @@ def main(**args):
                        stride=args['stride'],
                        num_samples=args['num_eval_samples'],
                        batch_size=1000,
+                       amortized=True if args['guide']=='custom' else None,
                        forecaster_options=svi_forecaster_options,
                        forecaster_fn=Forecaster)
 
@@ -238,22 +299,28 @@ def main(**args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multivariate timeseries models")
-    parser.add_argument("--trans-noise", default='stable', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
-    parser.add_argument("--obs-noise", default='stable', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
+    parser.add_argument("--trans-noise", default='gaussian', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
+    parser.add_argument("--obs-noise", default='student', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
     parser.add_argument("--dataset", default='metals', type=str)
+    parser.add_argument("--guide", default='custom', type=str, choices=['customgamma', 'customnormal', 'auto'])
     parser.add_argument("--data-dir", default='./data/', type=str)
     parser.add_argument("--log-dir", default='./logs/', type=str)
-    parser.add_argument("--train-window", default=200, type=int)
+    parser.add_argument("--train-window", default=1000, type=int)
     parser.add_argument("--test-window", default=5, type=int)
     parser.add_argument("--num-windows", default=2, type=int)
+    parser.add_argument("--num-channels", default=8, type=int)
+    parser.add_argument("--kernel_size", default=10, type=int)
+    parser.add_argument("--hidden-dim", default=40, type=int)
+    parser.add_argument("--num-layers", default=1, type=int)
     parser.add_argument("--stride", default=1, type=int)
-    parser.add_argument("--num-eval-samples", default=2500, type=int)
+    parser.add_argument("--num-eval-samples", default=1000, type=int)
     parser.add_argument("--clip-norm", default=10.0, type=float)
-    parser.add_argument("-n", "--num-steps", default=2, type=int)
+    parser.add_argument("-n", "--num-steps", default=800, type=int)
     parser.add_argument("-d", "--state-dim", default=5, type=int)
-    parser.add_argument("-lr", "--learning-rate", default=0.3, type=float)
-    parser.add_argument("-lrd", "--learning-rate-decay", default=0.01, type=float)
+    parser.add_argument("-lr", "--learning-rate", default=0.01, type=float)
+    parser.add_argument("-lrd", "--learning-rate-decay", default=0.003, type=float)
     parser.add_argument("--plot", action="store_true")
+    parser.add_argument("--cat-obs", action="store_true")
     parser.add_argument("--log-every", default=20, type=int)
     parser.add_argument("--seed", default=0, type=int)
     args = parser.parse_args()

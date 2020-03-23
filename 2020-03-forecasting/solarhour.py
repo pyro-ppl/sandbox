@@ -343,8 +343,8 @@ def main(**args):
             results[name] = value.data.cpu().numpy()
             print("[{}]".format(name), value.data.cpu().numpy())
 
-    #with open(args['log_dir'] + '/' + log_file[:-4] + '.pkl', 'wb') as f:
-    #    pickle.dump(results, f, protocol=2)
+    with open(args['log_dir'] + '/' + log_file[:-4] + '.pkl', 'wb') as f:
+        pickle.dump(results, f, protocol=2)
 
     log("[ELAPSED TIME]: {:.3f}".format(time.time() - t0))
 
