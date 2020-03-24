@@ -11,7 +11,7 @@ import pyro.distributions as dist
 import pyro.poutine as poutine
 import torch
 from pyro.infer import NUTS, SVI, EnergyDistance, Trace_ELBO
-from pyro.infer.autoguide import AutoNormal
+from pyro.infer.autoguide import AutoDelta, AutoNormal
 from pyro.infer.reparam import StableReparam, SymmetricStableReparam
 from pyro.optim import ClippedAdam
 
@@ -52,7 +52,7 @@ def method(name):
 
 
 @method("SVI")
-def svi(data, skew):
+def svi(data, min_stability, skew):
     rep = StableReparam() if skew is None else SymmetricStableReparam()
     reparam_model = poutine.reparam(model, {"x": rep})
     guide = AutoNormal(reparam_model)
@@ -72,17 +72,37 @@ def svi(data, skew):
     }
 
 
+@method("Energy")
+def energy(data, min_stability, skew):
+    guide = AutoDelta(model)
+    num_steps = 501
+    optim = ClippedAdam({"lr": 0.05, "lrd": 0.1 ** (1 / num_steps), "betas": (0.8, 0.95)})
+    svi = SVI(model, guide, optim, EnergyDistance(num_particles=8))
+    for step in range(num_steps):
+        loss = svi.step(data, skew)
+        if __debug__ and step % 50 == 0:
+            print("step {} loss = {:0.4g}".format(step, loss / data.numel()))
+    median = guide.median()
+    return {
+        "stability": median["stability"].item(),
+        "skew": median["skew"].item() if skew is None else 0.,
+        "scale": median["scale"].item(),
+        "loc": median["loc"].item(),
+    }
+
+
 def evaluate(name, stability, skew, num_samples, seed):
     pyro.clear_param_store()
     pyro.set_rng_seed(seed)
     data = synthesize(stability, skew, num_samples)
+    min_stability = min(1.0, stability - 0.25)
 
     time = -default_timer()
-    pred = METHODS[name](data, None if skew else skew)
+    pred = METHODS[name](data, min_stability, None if skew else skew)
     time += default_timer()
 
     truth = {"stability": stability, "skew": skew, "scale": 1., "loc": 0.}
-    error = {abs(pred[k] - v) for k, v in truth.items()}
+    error = {k: abs(pred[k] - v) for k, v in truth.items()}
     return {
         "name": name,
         "num_samples": num_samples,
@@ -108,7 +128,7 @@ def _evaluate(args):
 
 def main(args):
     pyro.enable_validation(__debug__)
-    grid = itertools.product(sorted(METHODS),
+    grid = itertools.product(args.method.split(","),
                              map(float, args.stability.split(",")),
                              map(float, args.skew.split(",")),
                              map(int, args.num_samples.split(",")),
@@ -125,10 +145,11 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Univariate stable parameter fitting")
-    parser.add_argument("--num-samples", default="100,1000,10000,100000")
+    parser.add_argument("--method", default=",".join(sorted(METHODS)))
+    parser.add_argument("--num-samples", default="100,1000,10000")
     parser.add_argument("--stability", default="0.5,1.0,1.5,1.7,1.9")
     parser.add_argument("--skew", default="0.0,0.1,0.5,0.9")
-    parser.add_argument("--num-seeds", default=10, type=int)
+    parser.add_argument("--num-seeds", default=50, type=int)
     parser.add_argument("--shuffle", default=0, type=int)
     args = parser.parse_args()
     try:
