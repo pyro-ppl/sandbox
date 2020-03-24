@@ -3,6 +3,7 @@ import itertools
 import multiprocessing
 import os
 import pickle
+import random
 from timeit import default_timer
 
 import pyro
@@ -56,7 +57,7 @@ def svi(data, skew):
     reparam_model = poutine.reparam(model, {"x": rep})
     guide = AutoNormal(reparam_model)
     num_steps = 1001
-    optim = ClippedAdam({"lr": 0.1, "lrd": 0.1 ** (1 / num_steps), "betas": (0.8, 0.95)})
+    optim = ClippedAdam({"lr": 0.05, "lrd": 0.1 ** (1 / num_steps), "betas": (0.8, 0.95)})
     svi = SVI(reparam_model, guide, optim, Trace_ELBO())
     for step in range(num_steps):
         loss = svi.step(data, skew)
@@ -65,7 +66,7 @@ def svi(data, skew):
     median = guide.median()
     return {
         "stability": median["stability"].item(),
-        "skew": 0. if skew is None else median["skew"].item(),
+        "skew": median["skew"].item() if skew is None else 0.,
         "scale": median["scale"].item(),
         "loc": median["loc"].item(),
     }
@@ -77,7 +78,7 @@ def evaluate(name, stability, skew, num_samples, seed):
     data = synthesize(stability, skew, num_samples)
 
     time = -default_timer()
-    pred = METHODS[name](data, None if skew == 0 else skew)
+    pred = METHODS[name](data, None if skew else skew)
     time += default_timer()
 
     truth = {"stability": stability, "skew": skew, "scale": 1., "loc": 0.}
@@ -94,7 +95,8 @@ def evaluate(name, stability, skew, num_samples, seed):
 
 
 def _evaluate(args):
-    filename = "{}_{:0.1f}_{:0.1f}_{}_{}.pkl".format(*args)
+    print(*args)
+    filename = os.path.join(RESULTS, "{}_{:0.1f}_{:0.1f}_{}_{}.pkl".format(*args))
     if os.path.exists(filename):
         with open(filename, "rb") as f:
             return pickle.load(f)
@@ -112,6 +114,9 @@ def main(args):
                              map(int, args.num_samples.split(",")),
                              range(args.num_seeds))
     grid = list(grid)
+    if args.shuffle:
+        pyro.set_rng_seed(args.shuffle)
+        random.shuffle(grid)
     map_ = map if __debug__ else multiprocessing.Pool().map
     results = list(map_(_evaluate, grid))
     return results
@@ -123,6 +128,7 @@ if __name__ == "__main__":
     parser.add_argument("--stability", default="0.5,1.0,1.5,1.7,1.9")
     parser.add_argument("--skew", default="0.0,0.1,0.5,0.9")
     parser.add_argument("--num-seeds", default=10, type=int)
+    parser.add_argument("--shuffle", default=0, type=int)
     args = parser.parse_args()
     try:
         main(args)
