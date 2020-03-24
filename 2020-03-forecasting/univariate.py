@@ -118,13 +118,14 @@ def main(args):
         pyro.set_rng_seed(args.shuffle)
         random.shuffle(grid)
     map_ = map if __debug__ else multiprocessing.Pool().map
-    results = list(map_(_evaluate, grid))
-    return results
+    summary = list(map_(_evaluate, grid))
+    with open(os.path.join(RESULTS, "summary.pkl"), "wb") as f:
+        pickle.dump(summary, f)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Univariate stable parameter fitting")
-    parser.add_argument("--num_samples", default="100,1000,10000")
+    parser.add_argument("--num-samples", default="100,1000,10000,100000")
     parser.add_argument("--stability", default="0.5,1.0,1.5,1.7,1.9")
     parser.add_argument("--skew", default="0.0,0.1,0.5,0.9")
     parser.add_argument("--num-seeds", default=10, type=int)
