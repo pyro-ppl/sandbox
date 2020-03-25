@@ -3,7 +3,7 @@
 all: test
 
 lint: FORCE
-	flake8 bart_*.py
+	flake8 bart_*.py univariate.py
 
 test: lint FORCE
 	rm -rf /tmp/bart_results

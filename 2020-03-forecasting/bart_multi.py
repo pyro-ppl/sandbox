@@ -9,7 +9,7 @@ import pyro.poutine as poutine
 import torch
 from pyro.contrib.examples.bart import load_bart_od
 from pyro.contrib.forecast import ForecastingModel, backtest
-from pyro.infer.reparam import LocScaleReparam, StableReparam, SymmetricStableReparam
+from pyro.infer.reparam import DiscreteCosineReparam, LocScaleReparam, SymmetricStableReparam
 from pyro.ops.tensor_utils import periodic_repeat
 
 logging.getLogger("pyro").setLevel(logging.DEBUG)
@@ -42,7 +42,6 @@ class Model(ForecastingModel):
 
         origin_plate = pyro.plate("origin", num_stations, dim=-3)
         destin_plate = pyro.plate("destin", num_stations, dim=-2)
-        hour_of_week_plate = pyro.plate("hour_of_week", 24 * 7, dim=-1)
 
         # Globals.
         trans_scale = pyro.sample("trans_scale", dist.LogNormal(-20, 5))
@@ -50,49 +49,47 @@ class Model(ForecastingModel):
             pass
         elif self.dist_type == "stable":
             trans_stability = pyro.sample("trans_stability", dist.Uniform(1, 2))
-            obs_stability = pyro.sample("obs_stability", dist.Uniform(1, 2))
-            obs_skew = pyro.sample("obs_skew", dist.Uniform(-1, 1))
         elif self.dist_type == "studentt":
             trans_dof = pyro.sample("trans_dof", dist.Uniform(1, 10))
-            obs_dof = pyro.sample("obs_dof", dist.Uniform(1, 10))
         else:
             raise ValueError(self.dist_type)
 
         # Series locals.
-        with origin_plate:
-            origin_scale = pyro.sample("origin_scale", dist.LogNormal(-5, 5))
-            with hour_of_week_plate:
-                origin_seasonal = pyro.sample("origin_seasonal", dist.Normal(0, 5))
-        with destin_plate:
-            destin_scale = pyro.sample("destin_scale", dist.LogNormal(-5, 5))
-            with hour_of_week_plate:
-                destin_seasonal = pyro.sample("destin_seasonal", dist.Normal(0, 5))
-            with self.time_plate:
-                if self.dist_type == "normal":
-                    with poutine.reparam(config={"drift": LocScaleReparam()}):
-                        drift = pyro.sample("drift", dist.Normal(0, trans_scale))
-                elif self.dist_type == "stable":
-                    with poutine.reparam(config={"drift": LocScaleReparam()}):
-                        with poutine.reparam(config={"drift": SymmetricStableReparam()}):
+        reparam_config = {"os_coef": DiscreteCosineReparam(),
+                          "ds_coef": DiscreteCosineReparam()}
+        with poutine.reparam(config=reparam_config):
+            with origin_plate:
+                origin_scale = pyro.sample("origin_scale", dist.LogNormal(-5, 5))
+                os_coef = pyro.sample("os_coef", dist.Normal(0, 5).expand([24 * 7]).to_event(1)).squeeze(-2)
+            with destin_plate:
+                destin_scale = pyro.sample("destin_scale", dist.LogNormal(-5, 5))
+                ds_coef = pyro.sample("ds_coef", dist.Normal(0, 5).expand([24 * 7]).to_event(1)).squeeze(-2)
+                with self.time_plate:
+                    if self.dist_type == "normal":
+                        with poutine.reparam(config={"drift": LocScaleReparam()}):
+                            drift = pyro.sample("drift", dist.Normal(0, trans_scale))
+                    elif self.dist_type == "stable":
+                        with poutine.reparam(config={"drift": LocScaleReparam()}):
+                            with poutine.reparam(config={"drift": SymmetricStableReparam()}):
+                                drift = pyro.sample(
+                                    "drift", dist.Stable(trans_stability, 0, trans_scale))
+                    elif self.dist_type == "studentt":
+                        with poutine.reparam(config={"drift": LocScaleReparam(shape_params=["df"])}):
                             drift = pyro.sample(
-                                "drift", dist.Stable(trans_stability, 0, trans_scale))
-                elif self.dist_type == "studentt":
-                    with poutine.reparam(config={"drift": LocScaleReparam(shape_params=["df"])}):
-                        drift = pyro.sample(
-                            "drift", dist.StudentT(trans_dof, 0, trans_scale))
-                else:
-                    raise ValueError(self.dist_type)
-        with origin_plate, destin_plate:
-            pairwise = pyro.sample("pairwise", dist.Normal(0, 1))
+                                "drift", dist.StudentT(trans_dof, 0, trans_scale))
+                    else:
+                        raise ValueError(self.dist_type)
+            with origin_plate, destin_plate:
+                od_coef = pyro.sample("od_coef", dist.Normal(0, 1))
 
         # Form prediction.
         destin_motion = drift.cumsum(dim=-1)
         origin_motion = _safe_transpose(destin_motion, destin_plate.dim, origin_plate.dim)
-        destin_prediction = destin_motion + periodic_repeat(destin_seasonal, duration, dim=-1)
-        origin_prediction = origin_motion + periodic_repeat(origin_seasonal, duration, dim=-1)
+        destin_prediction = destin_motion + periodic_repeat(ds_coef, duration, dim=-1)
+        origin_prediction = origin_motion + periodic_repeat(os_coef, duration, dim=-1)
         assert destin_prediction.shape[-2:] == (destin_plate.subsample_size, duration)
         assert origin_prediction.shape[-3:] == (origin_plate.subsample_size, 1, duration)
-        prediction = destin_prediction + origin_prediction + pairwise  # Note the broadcast.
+        prediction = destin_prediction + origin_prediction + od_coef  # Note the broadcast.
         assert prediction.shape[-3:] == (origin_plate.subsample_size,
                                          destin_plate.subsample_size,
                                          duration)
@@ -102,18 +99,8 @@ class Model(ForecastingModel):
         scale = scale.unsqueeze(-1)
         prediction = prediction.unsqueeze(-1)
         with origin_plate, destin_plate:
-            if self.dist_type == "normal":
-                noise_dist = dist.Normal(0, scale)
-                self.predict(noise_dist, prediction)
-            elif self.dist_type == "stable":
-                noise_dist = dist.Stable(obs_stability.unsqueeze(-1), obs_skew.unsqueeze(-1), scale)
-                with poutine.reparam(config={"residual": StableReparam()}):
-                    self.predict(noise_dist, prediction)
-            elif self.dist_type == "studentt":
-                noise_dist = dist.StudentT(obs_dof.unsqueeze(-1), 0, scale)
-                self.predict(noise_dist, prediction)
-            else:
-                raise ValueError(self.dist_type)
+            noise_dist = dist.Normal(0, scale)
+            self.predict(noise_dist, prediction)
 
 
 def main(args):
@@ -129,21 +116,23 @@ def main(args):
     print(dataset["counts"].shape, data.shape)
     covariates = torch.zeros(data.size(-2), 0)  # empty
 
-    def create_plates(zero_data, covariates):
-        num_origins, num_destins, duration, one = zero_data.shape
-        origin_plate = pyro.plate("origin", num_origins, subsample_size=16, dim=-3)
-        # We reuse the subsample so that both plates are subsampled identically.
-        with origin_plate as subsample:
-            pass
-        destin_plate = pyro.plate("destin", num_destins, subsample=subsample, dim=-2)
-        return origin_plate, destin_plate
-
     forecaster_options = {
-        "create_plates": create_plates,
         "learning_rate": args.learning_rate,
         "num_steps": args.num_steps,
         "log_every": args.log_every,
     }
+
+    if args.subsample_size:
+        def create_plates(zero_data, covariates):
+            num_origins, num_destins, duration, one = zero_data.shape
+            origin_plate = pyro.plate("origin", num_origins, subsample_size=16, dim=-3)
+            # We reuse the subsample so that both plates are subsampled identically.
+            with origin_plate as subsample:
+                pass
+            destin_plate = pyro.plate("destin", num_destins, subsample=subsample, dim=-2)
+            return origin_plate, destin_plate
+
+        forecaster_options["create_plates"] = create_plates
 
     def transform(pred, truth):
         pred = pred.clamp(min=0)
@@ -178,6 +167,7 @@ if __name__ == "__main__":
     parser.add_argument("--dist", default="normal,stable,studentt")
     parser.add_argument("--train-window", default=24 * 90, type=int)
     parser.add_argument("--test-window", default=24 * 14, type=int)
+    parser.add_argument("--subsample-size", default=0, type=int)
     parser.add_argument("-s", "--stride", default=24 * 100, type=int)
     parser.add_argument("-b", "--batch-size", default=10, type=int)
     parser.add_argument("-n", "--num-steps", default=2001, type=int)
