@@ -6,7 +6,6 @@ import uuid
 
 import numpy as np
 import math
-import pandas as pd
 
 import torch
 from torch.distributions import constraints, transform_to
@@ -14,16 +13,13 @@ import torch.nn as nn
 
 import pyro
 import pyro.distributions as dist
-from pyro.contrib.forecast import ForecastingModel, backtest, HMCForecaster, Forecaster
+from pyro.contrib.forecast import ForecastingModel, backtest
 from pyro.contrib.timeseries import IndependentMaternGP
-from pyro.nn import PyroParam, PyroSample
+from pyro.nn import PyroParam
 from pyro.infer.reparam import SymmetricStableReparam, StableReparam, StudentTReparam
 from pyro.infer.reparam import LinearHMMReparam
 from pyro.poutine import reparam
-from pyro.distributions import MultivariateNormal, LogNormal, Uniform, StudentT, Stable, Normal, Gamma, TransformedDistribution
-
-from os.path import exists
-from urllib.request import urlopen
+from pyro.distributions import MultivariateNormal, LogNormal, StudentT, Stable, Normal, Gamma, TransformedDistribution
 
 import pickle
 from logger import get_logger
@@ -84,7 +80,6 @@ def get_data(args):
     data = data[:to_keep].log().unsqueeze(-1).double().cuda()
 
     covariates = torch.zeros(data.size(0), 0).cuda()
-
     return data, covariates
 
 
@@ -230,21 +225,55 @@ def main(**args):
                        min_train_window=args['train_window'],
                        test_window=args['test_window'],
                        stride=args['stride'],
-                       batch_size=100,
+                       batch_size=200,
                        amortized=True,
                        num_samples=args['num_eval_samples'],
                        forecaster_options=svi_forecaster_options)
 
     log("### EVALUATION ###")
-    for name in ["mae", "rmse", "crps"]:
+    for name in ["mae", "crps"]:
         values = [m[name] for m in metrics]
         mean, std = np.mean(values), np.std(values)
         results[name] = mean
         results[name + '_std'] = std
         log("{} = {:0.4g} +- {:0.4g}".format(name, mean, std))
+    for name in ["mae_fine", "crps_fine"]:
+        values = np.stack([m[name] for m in metrics])
+        results[name] = values
 
-    #print("shape", metrics[0]['pred'].shape)
-    #results['pred'] = metrics[0]['pred'].data.cpu().numpy()[:, 0, :, 0]
+        pyro.set_rng_seed(0)
+        index = torch.randperm(values.shape[0])
+        index_test = index[:math.ceil(0.80 * values.shape[0])].data.cpu().numpy()
+        index_val = index[math.ceil(0.80 * values.shape[0]):].data.cpu().numpy()
+
+        for t in range(values.shape[1]):
+            metric_t = name[:-5] + '_{}'.format(t + 1)
+
+            mean = np.mean(values[:, t, :])
+            std = np.std(values[:, t, :])
+            results[metric_t] = mean
+            results[metric_t + '_std'] = std
+            log("{} = {:0.4g} +- {:0.4g}".format(metric_t, mean, std))
+
+            mean = np.mean(values[index_val, t, :])
+            std = np.std(values[index_val, t, :])
+            results[metric_t + '_val'] = mean
+            results[metric_t + '_val_std'] = std
+            log("{} = {:0.4g} +- {:0.4g}".format(metric_t + '_val', mean, std))
+
+            mean = np.mean(values[index_test, t, :])
+            std = np.std(values[index_test, t, :])
+            results[metric_t + '_test'] = mean
+            results[metric_t + '_test_std'] = std
+            log("{} = {:0.4g} +- {:0.4g}".format(metric_t + '_test', mean, std))
+
+    pred = np.stack([m['pred'].data.cpu().numpy() for m in metrics])
+    results['pred'] = pred[:, :, :, 0]
+
+    for name, value in pyro.get_param_store().items():
+        if value.numel() == 1:
+            results[name] = value.item()
+            print("[{}]".format(name), value.item())
 
     with open(args['log_dir'] + '/' + log_file[:-4] + '.pkl', 'wb') as f:
         pickle.dump(results, f, protocol=2)
@@ -254,9 +283,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multivariate timeseries models")
     parser.add_argument("--obs-noise", default='gaussian', type=str,
                         choices=['gaussian', 'stable', 'student', 'skew'])
-    parser.add_argument("--train-window", default=1100 * 48 - 20, type=int)
+    parser.add_argument("--train-window", default=1100 * 48 - 10, type=int)
     parser.add_argument("--test-window", default=5, type=int)
-    parser.add_argument("--stride", default=5, type=int)
+    parser.add_argument("--stride", default=1, type=int)
     parser.add_argument("--seed", default=0, type=int)
     parser.add_argument('-ld', '--log-dir', type=str, default="./logs/")
     parser.add_argument('--data-dir', type=str, default="./data/")
@@ -264,9 +293,9 @@ if __name__ == "__main__":
     parser.add_argument("--nu", default=1.5, type=float, choices=[0.5, 1.5, 2.5])
     parser.add_argument("--kernel_size", default=8, type=int)
     parser.add_argument("--hidden-dim", default=32, type=int)
-    parser.add_argument("--num-eval-samples", default=200, type=int)
+    parser.add_argument("--num-eval-samples", default=4000, type=int)
     parser.add_argument("--clip-norm", default=10.0, type=float)
-    parser.add_argument("-n", "--num-steps", default=101, type=int)
+    parser.add_argument("-n", "--num-steps", default=11, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.05, type=float)
     parser.add_argument("-lrd", "--learning-rate-decay", default=0.01, type=float)
     args = parser.parse_args()
