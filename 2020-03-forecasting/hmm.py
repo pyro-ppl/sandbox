@@ -203,6 +203,11 @@ def main(**args):
         T = covariates.size(0)
         pyro.module("guide_conv", guide_conv)
         alpha, beta = guide_conv(data)
+        #alpha = pyro.param("alpha", torch.zeros(T, 4))
+        #beta = pyro.param("beta", torch.ones(T, 4), constraint=constraints.positive)
+        #if torch.rand(1).item()<0.02:
+        #    print("alpha, beta", alpha[41:44:, 1].data.cpu().numpy(), beta[41:44:, 1].data.cpu().numpy())
+        #    print("data", data[41:44, 1].data.cpu().numpy())
         if args['guide'] == 'customgamma':
             if args['trans_noise'] == 'student':
                 pyro.sample("residual_trans_gamma", Gamma(alpha, beta).to_event(2))
@@ -299,19 +304,19 @@ def main(**args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multivariate timeseries models")
-    parser.add_argument("--trans-noise", default='student', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
-    parser.add_argument("--obs-noise", default='gaussian', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
+    parser.add_argument("--trans-noise", default='gaussian', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
+    parser.add_argument("--obs-noise", default='student', type=str, choices=['gaussian', 'stable', 'student', 'skew'])
     parser.add_argument("--dataset", default='metals', type=str)
-    parser.add_argument("--guide", default='customgamma', type=str, choices=['customgamma', 'customnormal', 'auto'])
+    parser.add_argument("--guide", default='customnormal', type=str, choices=['customgamma', 'customnormal', 'auto'])
     parser.add_argument("--data-dir", default='./data/', type=str)
     parser.add_argument("--log-dir", default='./logs/', type=str)
     parser.add_argument("--train-window", default=1000, type=int)
     parser.add_argument("--test-window", default=5, type=int)
-    parser.add_argument("--num-windows", default=2, type=int)
+    parser.add_argument("--num-windows", default=1, type=int)
     parser.add_argument("--num-channels", default=8, type=int)
     parser.add_argument("--kernel_size", default=8, type=int)
     parser.add_argument("--hidden-dim", default=32, type=int)
-    parser.add_argument("--num-layers", default=1, type=int)
+    parser.add_argument("--num-layers", default=2, type=int)
     parser.add_argument("--stride", default=1, type=int)
     parser.add_argument("--num-eval-samples", default=1000, type=int)
     parser.add_argument("--clip-norm", default=10.0, type=float)
