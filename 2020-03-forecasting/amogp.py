@@ -34,18 +34,22 @@ class IndependentMaternStableProcess(IndependentMaternGP):
     """
     def __init__(self, nu=1.5, dt=1.0, obs_dim=1,
                  length_scale_init=None, kernel_scale_init=None,
-                 obs_noise_scale_init=None, obs_noise="student"):
+                 obs_noise_scale_init=None, obs_noise="student", trans_noise="gaussian"):
         self.obs_noise = obs_noise
+        self.trans_noise = trans_noise
         assert obs_noise in ['gaussian', 'student', 'stable', 'skew']
+        assert trans_noise in ['gaussian', 'student', 'stable', 'skew']
+        if trans_noise in ['student', 'stable', 'skew']:
+            assert nu==0.5
         super().__init__(nu=nu, dt=dt, obs_dim=obs_dim,
                          length_scale_init=length_scale_init,
                          kernel_scale_init=kernel_scale_init,
                          obs_noise_scale_init=obs_noise_scale_init)
-        if obs_noise == "student":
+        if obs_noise == "student" or trans_noise == "student":
            self.nu = PyroParam(torch.tensor(5.0), constraint=constraints.interval(1.01, 30.0))
-        elif obs_noise == "stable":
+        elif obs_noise == "stable" or trans_noise == "stable":
            self.stability = PyroParam(torch.tensor(1.95), constraint=constraints.interval(1.01, 1.99))
-        elif obs_noise == "skew":
+        elif obs_noise == "skew" or trans_noise == "skew":
            self.stability = PyroParam(torch.tensor(1.95), constraint=constraints.interval(1.01, 1.99))
            self.skew = PyroParam(torch.tensor(0.0), constraint=constraints.interval(-0.99, 0.99))
 
@@ -67,8 +71,20 @@ class IndependentMaternStableProcess(IndependentMaternGP):
 
     def get_dist(self, duration=None):
         trans_matrix, process_covar = self.kernel.transition_matrix_and_covariance(dt=self.dt)
-        trans_dist = MultivariateNormal(self.obs_matrix.new_zeros(self.obs_dim, 1, self.kernel.state_dim),
-                                        process_covar.unsqueeze(-3))
+        process_covar = process_covar.unsqueeze(-3)
+        trans_dist = None
+
+        if self.trans_noise == "stable" or self.trans_noise == "skew":
+            stability = self.stability.unsqueeze(-1).unsqueeze(-1)
+            skew = 0.0 if self.trans_noise == "stable" else self.skew.unsqueeze(-1).unsqueeze(-1)
+            trans_dist = dist.Stable(stability, skew, scale=process_covar.sqrt() / root_two).to_event(1)
+        elif self.trans_noise == "student":
+            nu = self.nu.unsqueeze(-1).unsqueeze(-1)
+            trans_dist = StudentT(nu, torch.zeros(process_covar.shape, dtype=process_covar.dtype), process_covar.sqrt()).to_event(1)
+        elif self.trans_noise == "gaussian":
+            trans_dist = MultivariateNormal(self.obs_matrix.new_zeros(self.obs_dim, 1, self.kernel.state_dim),
+                                            process_covar)
+
         trans_matrix = trans_matrix.unsqueeze(-3)
         return dist.LinearHMM(self._get_init_dist(), trans_matrix, trans_dist,
                               self.obs_matrix, self._get_obs_dist(), duration=duration)
@@ -89,6 +105,11 @@ def get_data(args):
         max_price = data.max().item()
         max_log_price = data.log().max().item()
         print("[NEW] max_price", max_price, "max_log_price", max_log_price)
+    elif args['shock_factor'] < 0.0:
+        shock_times = torch.randperm(to_keep)[:num_shocks]
+        for t in shock_times:
+            factor = -args['shock_factor'] if t % 2==0 else -1.0 / args['shock_factor']
+            data[t:] *= factor
 
     data = data.log().unsqueeze(-1).double().cuda()
     covariates = torch.zeros(data.size(0), 0).cuda()
@@ -97,12 +118,11 @@ def get_data(args):
 
 
 class Model(ForecastingModel):
-    def __init__(self, obs_noise="gaussian", nu=1.5):
+    def __init__(self, trans_noise="gaussian", obs_noise="gaussian", nu=1.5):
         super().__init__()
-        self.obs_noise = obs_noise
-        self.noise_gp = IndependentMaternStableProcess(obs_dim=1, obs_noise=obs_noise, nu=nu,
+        self.noise_gp = IndependentMaternStableProcess(obs_dim=1, trans_noise=trans_noise, obs_noise=obs_noise, nu=nu,
                                                        length_scale_init=torch.tensor([10.0]))
-        if obs_noise == "gaussian":
+        if obs_noise == "gaussian" and trans_noise == "gaussian":
             self.config = {"residual": LinearHMMReparam()}
         elif obs_noise == "stable":
             self.config = {"residual": LinearHMMReparam(obs=SymmetricStableReparam())}
@@ -110,6 +130,12 @@ class Model(ForecastingModel):
             self.config = {"residual": LinearHMMReparam(obs=StableReparam())}
         elif obs_noise == "student":
             self.config = {"residual": LinearHMMReparam(obs=StudentTReparam())}
+        elif trans_noise == "stable":
+            self.config = {"residual": LinearHMMReparam(trans=SymmetricStableReparam())}
+        elif trans_noise == "skew":
+            self.config = {"residual": LinearHMMReparam(trans=StableReparam())}
+        elif trans_noise == "student":
+            self.config = {"residual": LinearHMMReparam(trans=StudentTReparam())}
 
     def model(self, zero_data, covariates):
         noise_dist = self.noise_gp.get_dist(duration=zero_data.size(-2))
@@ -159,8 +185,8 @@ class GuideConv(nn.Module):
 
 
 def main(**args):
-    log_file = 'amogp.{}.nu_{}.sf_{:.1f}.tt_{}_{}.arch_{}_{}_{}.co_{}.seed_{}.{}.log'
-    log_file = log_file.format(args['obs_noise'], args['nu'], args['shock_factor'],
+    log_file = 'amogp.{}.{}.nu_{}.sf_{:.1f}.tt_{}_{}.arch_{}_{}_{}.co_{}.seed_{}.{}.log'
+    log_file = log_file.format(args['trans_noise'], args['obs_noise'], args['nu'], args['shock_factor'],
                                args['train_window'], args['test_window'],
                                args['num_channels'], args['kernel_size'], args['hidden_dim'],
                                args['cat_obs'], args['seed'],
@@ -179,15 +205,18 @@ def main(**args):
     data, covariates = get_data(args)
     print("data, covariates", data.shape, covariates.shape)
 
-    guide_conv = None if args['obs_noise'] == 'gaussian' else GuideConv(num_channels=args['num_channels'], kernel_size=args['kernel_size'],
-                                                                        hidden_dim=args['hidden_dim'], num_layers=2,
-                                                                        cat_obs=args['cat_obs'],
-                                                                        distribution=args['obs_noise']).cuda()
+    guide_conv = None if args['obs_noise'] == 'gaussian' and args['trans_noise'] == 'gaussian' \
+                 else GuideConv(num_channels=args['num_channels'], kernel_size=args['kernel_size'],
+                                hidden_dim=args['hidden_dim'], num_layers=2,
+                                cat_obs=args['cat_obs'],
+                                distribution=args['obs_noise'] if args['obs_noise'] != 'gaussian' else args['trans_noise']).cuda()
+
+    trans_obs = 'obs' if args['obs_noise'] != 'gaussian' else 'trans'
 
     def amortized_student_guide(data, covariates):
         pyro.module("guide_conv", guide_conv)
         alpha, beta = guide_conv(data)
-        pyro.sample("residual_obs_gamma", Gamma(alpha.unsqueeze(0), beta.unsqueeze(0)).to_event(3))
+        pyro.sample("residual_{}_gamma".format(trans_obs), Gamma(alpha.unsqueeze(0), beta.unsqueeze(0)).to_event(3))
 
     def amortized_stable_guide(data, covariates):
         pyro.module("guide_conv", guide_conv)
@@ -196,10 +225,10 @@ def main(**args):
         uni_base = Normal(uni_loc.unsqueeze(0), uni_scale.unsqueeze(0))
         transform = transform_to(constraints.interval(-math.pi / 2.0, math.pi / 2.0))
         q_uni = TransformedDistribution(uni_base.to_event(3), transform)
-        pyro.sample("residual_obs_uniform", q_uni)
+        pyro.sample("residual_{}_uniform".format(trans_obs), q_uni)
 
         q_exp = LogNormal(exp_loc.unsqueeze(0), exp_scale.unsqueeze(0)).to_event(3)
-        pyro.sample("residual_obs_exponential", q_exp)
+        pyro.sample("residual_{}_exponential".format(trans_obs), q_exp)
 
     def amortized_skew_guide(data, covariates):
         pyro.module("guide_conv", guide_conv)
@@ -208,20 +237,20 @@ def main(**args):
 
         uni_t_base = Normal(uni_t_loc.unsqueeze(0), uni_t_scale.unsqueeze(0))
         q_uni_t = TransformedDistribution(uni_t_base.to_event(3), transform)
-        pyro.sample("residual_obs_t_uniform", q_uni_t)
+        pyro.sample("residual_{}_t_uniform".format(trans_obs), q_uni_t)
         q_exp_t = LogNormal(exp_t_loc.unsqueeze(0), exp_t_scale.unsqueeze(0)).to_event(3)
-        pyro.sample("residual_obs_t_exponential", q_exp_t)
+        pyro.sample("residual_{}_t_exponential".format(trans_obs), q_exp_t)
 
         uni_z_base = Normal(uni_z_loc.unsqueeze(0), uni_z_scale.unsqueeze(0))
         q_uni_z = TransformedDistribution(uni_z_base.to_event(3), transform)
-        pyro.sample("residual_obs_z_uniform", q_uni_z)
+        pyro.sample("residual_{}_z_uniform".format(trans_obs), q_uni_z)
         q_exp_z = LogNormal(exp_z_loc.unsqueeze(0), exp_z_scale.unsqueeze(0)).to_event(3)
-        pyro.sample("residual_obs_z_exponential", q_exp_z)
+        pyro.sample("residual_{}_z_exponential".format(trans_obs), q_exp_z)
 
     guide = {'gaussian': None,
              'student': amortized_student_guide,
              'skew': amortized_skew_guide,
-             'stable': amortized_stable_guide}[args['obs_noise']]
+             'stable': amortized_stable_guide}[args['obs_noise'] if args['obs_noise'] != 'gaussian' else args['trans_noise']]
 
     def svi_forecaster_options(t0, t1, t2):
         num_steps = args['num_steps']  if t1 == args['train_window'] else 0
@@ -233,7 +262,7 @@ def main(**args):
                 "num_particles": 1, "guide": guide}
 
     metrics = backtest(data, covariates,
-                       lambda: Model(obs_noise=args['obs_noise'], nu=args['nu']),
+                       lambda: Model(trans_noise=args['trans_noise'], obs_noise=args['obs_noise'], nu=args['nu']),
                        train_window=None,
                        min_train_window=args['train_window'],
                        test_window=args['test_window'],
@@ -296,7 +325,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multivariate timeseries models")
     parser.add_argument("--obs-noise", default='gaussian', type=str,
                         choices=['gaussian', 'stable', 'student', 'skew'])
-    parser.add_argument("--train-window", default=1000*48-50, type=int)
+    parser.add_argument("--trans-noise", default='gaussian', type=str,
+                        choices=['gaussian', 'stable', 'student', 'skew'])
+    parser.add_argument("--train-window", default=1000*48-200, type=int)
     parser.add_argument("--test-window", default=5, type=int)
     parser.add_argument("--stride", default=5, type=int)
     parser.add_argument("--seed", default=0, type=int)
@@ -306,11 +337,11 @@ if __name__ == "__main__":
     parser.add_argument("--nu", default=0.5, type=float, choices=[0.5, 1.5, 2.5])
     parser.add_argument("--kernel_size", default=8, type=int)
     parser.add_argument("--hidden-dim", default=32, type=int)
-    parser.add_argument("--num-eval-samples", default=400, type=int)
+    parser.add_argument("--num-eval-samples", default=100, type=int)
     parser.add_argument("--clip-norm", default=10.0, type=float)
     parser.add_argument("--cat-obs", default=0, type=int)
     parser.add_argument("--shock-factor", default=0.0, type=float)
-    parser.add_argument("-n", "--num-steps", default=301, type=int)
+    parser.add_argument("-n", "--num-steps", default=401, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.05, type=float)
     parser.add_argument("-lrd", "--learning-rate-decay", default=0.001, type=float)
     args = parser.parse_args()
