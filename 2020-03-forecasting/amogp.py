@@ -76,10 +76,23 @@ class IndependentMaternStableProcess(IndependentMaternGP):
 
 def get_data(args):
     data = torch.tensor(np.loadtxt(args['data_dir'] + '/ercot.csv', skiprows=1, delimiter=',', usecols=(5)))
-    to_keep = 1100 * 48
-    data = data[:to_keep].log().unsqueeze(-1).double().cuda()
+    to_keep = 1000 * 48
+    data = data[:to_keep]
 
+    max_price = data.max().item()
+    max_log_price = data.log().max().item()
+    print("max_price", max_price, "max_log_price", max_log_price)
+    num_shocks = 10
+    if args['shock_factor'] > 0.0:
+        shock_times = torch.randperm(to_keep)[:num_shocks]
+        data[shock_times] = max_price * args['shock_factor']
+        max_price = data.max().item()
+        max_log_price = data.log().max().item()
+        print("[NEW] max_price", max_price, "max_log_price", max_log_price)
+
+    data = data.log().unsqueeze(-1).double().cuda()
     covariates = torch.zeros(data.size(0), 0).cuda()
+
     return data, covariates
 
 
@@ -146,8 +159,8 @@ class GuideConv(nn.Module):
 
 
 def main(**args):
-    log_file = 'amogp.{}.nu_{}.tt_{}_{}.arch_{}_{}_{}.co_{}.seed_{}.{}.log'
-    log_file = log_file.format(args['obs_noise'], args['nu'],
+    log_file = 'amogp.{}.nu_{}.sf_{:.1f}.tt_{}_{}.arch_{}_{}_{}.co_{}.seed_{}.{}.log'
+    log_file = log_file.format(args['obs_noise'], args['nu'], args['shock_factor'],
                                args['train_window'], args['test_window'],
                                args['num_channels'], args['kernel_size'], args['hidden_dim'],
                                args['cat_obs'], args['seed'],
@@ -273,7 +286,7 @@ def main(**args):
     for name, value in pyro.get_param_store().items():
         if value.numel() == 1:
             results[name] = value.item()
-            log("[{}]".format(name), value.item())
+            log("[{}] {:.6g}".format(name, value.item()))
 
     with open(args['log_dir'] + '/' + log_file[:-4] + '.pkl', 'wb') as f:
         pickle.dump(results, f, protocol=2)
@@ -283,19 +296,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multivariate timeseries models")
     parser.add_argument("--obs-noise", default='gaussian', type=str,
                         choices=['gaussian', 'stable', 'student', 'skew'])
-    parser.add_argument("--train-window", default=1100*48-40, type=int)
+    parser.add_argument("--train-window", default=1000*48-50, type=int)
     parser.add_argument("--test-window", default=5, type=int)
     parser.add_argument("--stride", default=5, type=int)
     parser.add_argument("--seed", default=0, type=int)
     parser.add_argument('-ld', '--log-dir', type=str, default="./logs/")
     parser.add_argument('--data-dir', type=str, default="./data/")
     parser.add_argument("--num-channels", default=8, type=int)
-    parser.add_argument("--nu", default=1.5, type=float, choices=[0.5, 1.5, 2.5])
+    parser.add_argument("--nu", default=0.5, type=float, choices=[0.5, 1.5, 2.5])
     parser.add_argument("--kernel_size", default=8, type=int)
     parser.add_argument("--hidden-dim", default=32, type=int)
     parser.add_argument("--num-eval-samples", default=400, type=int)
     parser.add_argument("--clip-norm", default=10.0, type=float)
     parser.add_argument("--cat-obs", default=0, type=int)
+    parser.add_argument("--shock-factor", default=0.0, type=float)
     parser.add_argument("-n", "--num-steps", default=301, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.05, type=float)
     parser.add_argument("-lrd", "--learning-rate-decay", default=0.001, type=float)
