@@ -134,7 +134,7 @@ class GuideConv(nn.Module):
             h = self.fc2(self.relu(self.fc(self.relu(h))))
         if self.distribution == 'student':
             h = nn.functional.softplus(h)
-            return h[:, 0:1].clamp(min=0.01), h[:, 1:2].clamp(min=0.01)
+            return h[:, 0:1].clamp(min=0.1), h[:, 1:2].clamp(min=0.1)
         elif self.distribution == 'stable':
             return h[:, 0:1], nn.functional.softplus(h[:, 1:2]).clamp(min=0.01), \
                    h[:, 2:3], nn.functional.softplus(h[:, 3:4]).clamp(min=0.01)
@@ -146,11 +146,11 @@ class GuideConv(nn.Module):
 
 
 def main(**args):
-    log_file = 'amogp.{}.nu_{}.tt_{}_{}.arch_{}_{}_{}.seed_{}.{}.log'
+    log_file = 'amogp.{}.nu_{}.tt_{}_{}.arch_{}_{}_{}.co_{}.seed_{}.{}.log'
     log_file = log_file.format(args['obs_noise'], args['nu'],
                                args['train_window'], args['test_window'],
                                args['num_channels'], args['kernel_size'], args['hidden_dim'],
-                               args['seed'],
+                               args['cat_obs'], args['seed'],
                                str(uuid.uuid4())[0:4])
 
     log = get_logger(args['log_dir'], log_file, use_local_logger=False)
@@ -168,7 +168,7 @@ def main(**args):
 
     guide_conv = None if args['obs_noise'] == 'gaussian' else GuideConv(num_channels=args['num_channels'], kernel_size=args['kernel_size'],
                                                                         hidden_dim=args['hidden_dim'], num_layers=2,
-                                                                        cat_obs=False,
+                                                                        cat_obs=args['cat_obs'],
                                                                         distribution=args['obs_noise']).cuda()
 
     def amortized_student_guide(data, covariates):
@@ -236,7 +236,7 @@ def main(**args):
         mean, std = np.mean(values), np.std(values)
         results[name] = mean
         results[name + '_std'] = std
-        log("{} = {:0.4g} +- {:0.4g}".format(name, mean, std))
+        log("{} = {:0.6g} +- {:0.6g}".format(name, mean, std))
     for name in ["mae_fine", "crps_fine"]:
         values = np.stack([m[name] for m in metrics])
         results[name] = values
@@ -253,19 +253,19 @@ def main(**args):
             std = np.std(values[:, t, :])
             results[metric_t] = mean
             results[metric_t + '_std'] = std
-            log("{} = {:0.4g} +- {:0.4g}".format(metric_t, mean, std))
+            log("{} = {:0.6g} +- {:0.6g}".format(metric_t, mean, std))
 
             mean = np.mean(values[index_val, t, :])
             std = np.std(values[index_val, t, :])
             results[metric_t + '_val'] = mean
             results[metric_t + '_val_std'] = std
-            log("{} = {:0.4g} +- {:0.4g}".format(metric_t + '_val', mean, std))
+            log("{} = {:0.6g} +- {:0.6g}".format(metric_t + '_val', mean, std))
 
             mean = np.mean(values[index_test, t, :])
             std = np.std(values[index_test, t, :])
             results[metric_t + '_test'] = mean
             results[metric_t + '_test_std'] = std
-            log("{} = {:0.4g} +- {:0.4g}".format(metric_t + '_test', mean, std))
+            log("{} = {:0.6g} +- {:0.6g}".format(metric_t + '_test', mean, std))
 
     pred = np.stack([m['pred'].data.cpu().numpy() for m in metrics])
     results['pred'] = pred[:, :, :, 0]
@@ -273,7 +273,7 @@ def main(**args):
     for name, value in pyro.get_param_store().items():
         if value.numel() == 1:
             results[name] = value.item()
-            print("[{}]".format(name), value.item())
+            log("[{}]".format(name), value.item())
 
     with open(args['log_dir'] + '/' + log_file[:-4] + '.pkl', 'wb') as f:
         pickle.dump(results, f, protocol=2)
@@ -283,9 +283,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multivariate timeseries models")
     parser.add_argument("--obs-noise", default='gaussian', type=str,
                         choices=['gaussian', 'stable', 'student', 'skew'])
-    parser.add_argument("--train-window", default=1100 * 48 - 10, type=int)
+    parser.add_argument("--train-window", default=1100*48-40, type=int)
     parser.add_argument("--test-window", default=5, type=int)
-    parser.add_argument("--stride", default=1, type=int)
+    parser.add_argument("--stride", default=5, type=int)
     parser.add_argument("--seed", default=0, type=int)
     parser.add_argument('-ld', '--log-dir', type=str, default="./logs/")
     parser.add_argument('--data-dir', type=str, default="./data/")
@@ -293,11 +293,12 @@ if __name__ == "__main__":
     parser.add_argument("--nu", default=1.5, type=float, choices=[0.5, 1.5, 2.5])
     parser.add_argument("--kernel_size", default=8, type=int)
     parser.add_argument("--hidden-dim", default=32, type=int)
-    parser.add_argument("--num-eval-samples", default=4000, type=int)
+    parser.add_argument("--num-eval-samples", default=400, type=int)
     parser.add_argument("--clip-norm", default=10.0, type=float)
-    parser.add_argument("-n", "--num-steps", default=11, type=int)
+    parser.add_argument("--cat-obs", default=0, type=int)
+    parser.add_argument("-n", "--num-steps", default=301, type=int)
     parser.add_argument("-lr", "--learning-rate", default=0.05, type=float)
-    parser.add_argument("-lrd", "--learning-rate-decay", default=0.01, type=float)
+    parser.add_argument("-lrd", "--learning-rate-decay", default=0.001, type=float)
     args = parser.parse_args()
 
     main(**vars(args))
