@@ -1,5 +1,6 @@
 import argparse
 import itertools
+import math
 import multiprocessing
 import os
 import pickle
@@ -45,7 +46,7 @@ class AmortizedGuide(EasyGuide):
         self.loc = PyroParam(torch.tensor(INITS["loc"]))
         self.nn = None
 
-    def guide(self, data, skew=None, num_samples=None):
+    def guide(self, data, skew=None):
         pyro.sample("stability", dist.Delta(self.stability))
         if skew is None:
             pyro.sample("skew", dist.Delta(self.skew))
@@ -106,6 +107,10 @@ def method(name):
     return decorator
 
 
+class RetryError(Exception):
+    pass
+
+
 @method("SVI")
 def svi(data, min_stability, skew):
     rep = StableReparam() if skew is None else SymmetricStableReparam()
@@ -118,6 +123,8 @@ def svi(data, min_stability, skew):
         loss = svi.step(data, skew)
         if __debug__ and step % ARGS.log_every == 0:
             print("step {} loss = {:0.4g}".format(step, loss / data.numel()))
+        if math.isnan(loss):
+            raise RetryError
     median = guide.median()
     return {
         "stability": median["stability"].item(),
@@ -127,18 +134,50 @@ def svi(data, min_stability, skew):
     }
 
 
-@method("Amortized")
+@method("SSVI")
+def ssvi(data, min_stability, skew):
+    rep = StableReparam() if skew is None else SymmetricStableReparam()
+    reparam_model = poutine.reparam(model, {"x": rep})
+
+    create_plates = None
+    if ARGS.batch_size < len(data):
+        def create_plates(data, skew=None):
+            subsample = torch.randint(len(data), (ARGS.batch_size,))
+            return pyro.plate("plate", len(data), subsample=subsample)
+
+    guide = AutoNormal(reparam_model, create_plates=create_plates)
+    num_steps = 1 + max(1000, 10 * len(data) // ARGS.batch_size)
+    optim = ClippedAdam({"lr": 0.1, "lrd": 0.1 ** (1 / num_steps), "betas": (0.8, 0.95)})
+    svi = SVI(reparam_model, guide, optim, Trace_ELBO())
+    for step in range(num_steps):
+        loss = svi.step(data, skew)
+        if __debug__ and step % ARGS.log_every == 0:
+            print("step {} loss = {:0.4g}".format(step, loss / data.numel()))
+        if math.isnan(loss):
+            raise RetryError
+    median = guide.median()
+    return {
+        "stability": median["stability"].item(),
+        "skew": median["skew"].item() if skew is None else 0.,
+        "scale": median["scale"].item(),
+        "loc": median["loc"].item(),
+    }
+
+
+@method("ASVI")
 def asvi(data, min_stability, skew):
     rep = StableReparam() if skew is None else SymmetricStableReparam()
     reparam_model = poutine.reparam(model, {"x": rep})
     guide = AmortizedGuide(reparam_model)
-    num_steps = 1001
+    num_steps = 2001
     optim = ClippedAdam({"lr": 0.02, "lrd": 0.1 ** (1 / num_steps), "betas": (0.95, 0.99)})
     svi = SVI(reparam_model, guide, optim, Trace_ELBO())
     for step in range(num_steps):
         loss = svi.step(data, skew)
         if __debug__ and step % ARGS.log_every == 0:
             print("step {} loss = {:0.4g}".format(step, loss / data.numel()))
+        if math.isnan(loss):
+            raise RetryError
     median = guide.median()
     return {
         "stability": median["stability"].item(),
@@ -166,6 +205,7 @@ def hmc(data, min_stability, skew):
     }
 
 
+# This does not seem to converge.
 # @method("Energy")
 def energy(data, min_stability, skew):
     guide = AutoDelta(model, init_loc_fn=init_loc_fn)
@@ -193,7 +233,13 @@ def evaluate(name, stability, skew, num_samples, seed):
     min_stability = min(1.0, stability - 0.1)
 
     time = -default_timer()
-    pred = METHODS[name](data, min_stability, None if skew else skew)
+    for retries in range(ARGS.max_retries):
+        try:
+            pred = METHODS[name](data, min_stability, None if skew else skew)
+        except RetryError:
+            print("error, retrying")
+        else:
+            break
     time += default_timer()
 
     truth = {"stability": stability, "skew": skew, "scale": 1., "loc": 0.}
@@ -217,6 +263,7 @@ def evaluate(name, stability, skew, num_samples, seed):
         "pred": pred,
         "error": error,
         "time": time,
+        "retries": retries,
     }
 
 
@@ -258,6 +305,7 @@ if __name__ == "__main__":
     parser.add_argument("--stability", default="0.5,1.0,1.5,1.7,1.9")
     parser.add_argument("--skew", default="0.0,0.1,0.5,0.9")
     parser.add_argument("--batch-size", default=1000, type=int)
+    parser.add_argument("--max-retries", default=5, type=int)
     parser.add_argument("--num-seeds", default=50, type=int)
     parser.add_argument("--shuffle", default=0, type=int)
     parser.add_argument("-f", "--force", action="store_true")
