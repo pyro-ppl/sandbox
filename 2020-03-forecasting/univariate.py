@@ -206,9 +206,15 @@ def hmc(data, min_stability, skew):
 
 
 # This does not seem to converge.
-# @method("Energy")
+@method("Energy")
 def energy(data, min_stability, skew):
-    guide = AutoDelta(model, init_loc_fn=init_loc_fn)
+    create_plates = None
+    if ARGS.batch_size < len(data):
+        def create_plates(data, skew=None):
+            subsample = torch.randint(len(data), (ARGS.batch_size,))
+            return pyro.plate("plate", len(data), subsample=subsample)
+
+    guide = AutoDelta(model, init_loc_fn=init_loc_fn, create_plates=create_plates)
     num_steps = 1001
     optim = Adam({"lr": 0.1})
     energy = EnergyDistance(beta=min_stability, num_particles=ARGS.num_particles)
@@ -217,7 +223,7 @@ def energy(data, min_stability, skew):
         loss = svi.step(data, skew)
         if __debug__ and step % 50 == 0:
             print("step {} loss = {:0.4g}".format(step, loss / data.numel()))
-    median = guide.median()
+    median = guide.median(data)
     return {
         "stability": median["stability"].item(),
         "skew": median["skew"].item() if skew is None else 0.,
