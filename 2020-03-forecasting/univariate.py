@@ -206,7 +206,7 @@ def hmc(data, min_stability, skew):
 
 
 # This does not seem to converge.
-@method("Energy")
+# @method("Energy")
 def energy(data, min_stability, skew):
     create_plates = None
     if ARGS.batch_size < len(data):
@@ -279,6 +279,17 @@ def _evaluate(args):
     if os.path.exists(filename) and not ARGS.force:
         with open(filename, "rb") as f:
             return pickle.load(f)
+
+    if ARGS.summarize:
+        name, stability, skew, num_samples, seed = args
+        truth = {"stability": stability, "skew": skew, "scale": 1., "loc": 0.}
+        return {
+            "name": name,
+            "num_samples": num_samples,
+            "seed": seed,
+            "truth": truth,
+        }
+
     result = evaluate(*args)
     with open(filename, "wb") as f:
         pickle.dump(result, f)
@@ -307,7 +318,7 @@ if __name__ == "__main__":
     parser.add_argument("--method", default=",".join(sorted(METHODS)))
     parser.add_argument("--hidden-dim", default=16, type=int)
     parser.add_argument("--num-particles", default=8, type=int)
-    parser.add_argument("--num-samples", default="100,1000,10000")
+    parser.add_argument("--num-samples", default="100,1000,10000,100000,1000000")
     parser.add_argument("--stability", default="0.5,1.0,1.5,1.7,1.9")
     parser.add_argument("--skew", default="0.0,0.1,0.5,0.9")
     parser.add_argument("--batch-size", default=1000, type=int)
@@ -315,6 +326,7 @@ if __name__ == "__main__":
     parser.add_argument("--num-seeds", default=50, type=int)
     parser.add_argument("--shuffle", default=0, type=int)
     parser.add_argument("-f", "--force", action="store_true")
+    parser.add_argument("--summarize", action="store_true")
     parser.add_argument("--log-every", default=50, type=int)
     ARGS = parser.parse_args()
     try:
