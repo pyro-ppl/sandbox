@@ -14,4 +14,8 @@ test: lint FORCE
 clean: FORCE
 	rm -rf results
 
+univariate: FORCE
+	python -O univariate.py
+	python -O univariate.py --method=SSVI,ASVI --num-samples=100000,1000000
+
 FORCE:
