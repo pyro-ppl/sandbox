@@ -80,6 +80,10 @@ def main(args):
     if args.outfile:
         with open(args.outfile, "w") as f:
             f.write("\n".join(results))
+
+    print("-------------------------")
+    print("COMPLETED {} TASKS".format(len(tasks)))
+    print("-------------------------")
     return results
 
 

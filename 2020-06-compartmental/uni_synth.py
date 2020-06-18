@@ -83,6 +83,15 @@ def generate_data(args):
                          .format(max_obs, args.max_obs_portion))
 
 
+def _item(x):
+    if isinstance(x, torch.Tensor):
+        x = x.reshape(-1).median().item()
+    elif isinstance(x, dict):
+        for key, value in x.items():
+            x[key] = _item(value)
+    return x
+
+
 def infer_mcmc(args, model):
     parallel = args.num_chains > 1
 
@@ -99,9 +108,7 @@ def infer_mcmc(args, model):
                           jit_compile=args.jit)
 
     result = summary(mcmc._samples)
-    for key, value in result.items():
-        if isinstance(value, torch.Tensor):
-            result[key] = value.reshape(-1).median().values.item()
+    result = _item(result)
     return result
 
 

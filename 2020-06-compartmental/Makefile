@@ -15,8 +15,7 @@ short_uni_synth: FORCE
 		--args-filename=short_uni_synth.csv \
 		--cores-per-worker=4 \
 		--rng-seed=0,1 \
-		--shuffle \
-		--dry-run
+		--shuffle
 
 clean: FORCE
 	rm -rf temp logs errors
