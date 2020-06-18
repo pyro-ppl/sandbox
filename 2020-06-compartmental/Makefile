@@ -12,7 +12,7 @@ short_uni_synth: FORCE
 	python runner.py \
 		--script-filename=uni_synth.py \
 		--args-filename=short_uni_synth_svi.csv \
-		--rng-seed=0,1,2,3,4,5,6,7,8,9 \
+		--rng-seed=0,1,2,3,4 \
 		--shuffle
 	python runner.py \
 		--script-filename=uni_synth.py \
