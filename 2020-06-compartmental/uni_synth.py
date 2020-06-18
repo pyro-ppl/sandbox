@@ -4,6 +4,7 @@
 import argparse
 import logging
 import math
+import os
 import pickle
 import resource
 import sys
@@ -153,6 +154,14 @@ def main(args):
     pyro.set_rng_seed(args.rng_seed + 20200617)
 
     result = {"args": args, "file": __file__, "argv": sys.argv}
+    if args.outfile and os.path.exists(args.outfile):
+        # Simply update metadata.
+        with open(args.outfile, "rb") as f:
+            result.update(pickle.load(f))
+        with open(args.outfile, "wb") as f:
+            pickle.dump(result, f)
+        logging.info("DONE")
+        return result
 
     truth = generate_data(args)
 

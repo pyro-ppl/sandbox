@@ -31,7 +31,7 @@ def work(task):
                 "_".join("{}={}".format(k, v) for k, v in spec.items()))
     result_file = os.path.join(RESULTS, basename + ".pkl")
     if os.path.exists(result_file) and not args.force:
-        return True
+        return result_file
 
     temp_file = os.path.join(TEMP, basename + ".pkl")
     log_file = os.path.join(LOGS, basename + ".txt")
