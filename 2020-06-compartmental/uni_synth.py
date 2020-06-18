@@ -161,8 +161,8 @@ def main(args):
     result["times"] = {"infer": t1 - t0, "predict": t2 - t1}
     result["rusage"] = resource.getrusage(resource.RUSAGE_SELF)
 
-    if args.output:
-        with open(args.output, "wb") as f:
+    if args.outfile:
+        with open(args.outfile, "wb") as f:
             pickle.dump(result, f)
     return result
 
@@ -204,7 +204,7 @@ if __name__ == "__main__":
     parser.add_argument("--jit", action="store_true", default=True)
     parser.add_argument("--nojit", action="store_false", dest="jit")
     parser.add_argument("--verbose", action="store_true")
-    parser.add_argument("--output")
+    parser.add_argument("--outfile")
     args = parser.parse_args()
     args.population = int(args.population)  # to allow e.g. --population=1e6
 

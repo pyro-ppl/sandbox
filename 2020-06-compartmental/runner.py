@@ -28,14 +28,15 @@ for path in [TEMP, LOGS, ERRORS, RESULTS]:
 
 def work(task):
     args, spec = task
-    basename = "_".join("{}={}".format(k, v) for k, v in spec.items())
+    basename = (args.script_filename + "." +
+                "_".join("{}={}".format(k, v) for k, v in spec.items()))
     result_file = os.path.join(RESULTS, basename + ".pkl")
-    if os.path.exists(result_file):
+    if os.path.exists(result_file) and not args.force:
         return True
 
     temp_file = os.path.join(TEMP, basename + ".pkl")
     log_file = os.path.join(LOGS, basename + ".txt")
-    spec["output"] = temp_file
+    spec["outfile"] = temp_file
     command = ([sys.executable, args.script_filename] +
                ["--{}={}".format(k, v) for k, v in spec.items()])
     print(" ".join(command))
@@ -61,7 +62,7 @@ def main(args):
         header = next(reader)
         tasks = []
         for row in reader:
-            command_args = OrderedDict((k, v) for k, v in zip(header, row) if v)
+            command_args = OrderedDict(sorted((k, v) for k, v in zip(header, row) if v))
             tasks.append((args, command_args))
     if args.shuffle:
         random.shuffle(tasks)
@@ -69,9 +70,16 @@ def main(args):
     if args.num_workers == 1:
         map_ = map
     else:
+        print("Running {} tasks on {} workers".format(len(tasks), args.num_workers))
         map_ = multiprocessing.Pool(args.num_workers).map
     results = map_(work, tasks)
     assert all(results)
+
+    results.sort()
+    if args.outfile:
+        with open(args.outfile, "w") as f:
+            f.write("\n".join(results))
+    return results
 
 
 if __name__ == "__main__":
@@ -83,11 +91,12 @@ if __name__ == "__main__":
     parser.add_argument("--shuffle", action="store_true")
     parser.add_argument("-f", "--force", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--outfile")
     args = parser.parse_args()
 
     if args.cores_per_worker:
-        args.workers = max(1, CPUS // args.cores_per_worker)
+        args.num_workers = max(1, CPUS // args.cores_per_worker)
     if args.dry_run:
-        args.workers = 1
+        args.num_workers = 1
 
     main(args)
