@@ -10,6 +10,7 @@ import subprocess
 import sys
 
 CPUS = multiprocessing.cpu_count()
+ENV = os.environ.copy()
 ROOT = os.path.dirname(os.path.abspath(__file__))
 TEMP = os.path.join(ROOT, "temp")
 LOGS = os.path.join(ROOT, "logs")
@@ -32,6 +33,8 @@ def work(task):
     result_file = os.path.join(RESULTS, basename + ".pkl")
     if os.path.exists(result_file) and not args.force:
         return result_file
+    elif args.skip:
+        return None
 
     temp_file = os.path.join(TEMP, basename + ".pkl")
     log_file = os.path.join(LOGS, basename + ".txt")
@@ -43,7 +46,7 @@ def work(task):
         return result_file
     try:
         with open(log_file, "w") as f:
-            subprocess.check_call(command, stderr=f, stdout=f)
+            subprocess.check_call(command, stderr=f, stdout=f, env=ENV)
         os.rename(temp_file, result_file)  # Use rename to make write atomic.
         return result_file
     except subprocess.CalledProcessError as e:
@@ -67,7 +70,6 @@ def main(args):
                 tasks.append((args, spec.copy()))
     if args.shuffle:
         random.shuffle(tasks)
-    num_tasks = len(tasks)
 
     if args.num_workers == 1:
         map_ = map
@@ -76,7 +78,7 @@ def main(args):
         map_ = multiprocessing.Pool(args.num_workers).map
     results = list(map_(work, tasks))
     if args.skip:
-        tasks = [t for t in tasks if t]
+        results = [r for r in results if r is not None]
     else:
         assert all(results)
 
@@ -86,7 +88,7 @@ def main(args):
             f.write("\n".join(results))
 
     print("-------------------------")
-    print("COMPLETED {}/{} TASKS".format(len(tasks), num_tasks))
+    print("COMPLETED {}/{} TASKS".format(len(results), len(tasks)))
     print("-------------------------")
     return results
 
@@ -107,6 +109,7 @@ if __name__ == "__main__":
 
     if args.cores_per_worker:
         args.num_workers = max(1, CPUS // args.cores_per_worker)
+        ENV["OMP_NUM_THREAD"] = min(CPUS, 2 * args.cores_per_worker)
     if args.dry_run:
         args.num_workers = 1
 
