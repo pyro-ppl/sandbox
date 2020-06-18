@@ -1,0 +1,5 @@
+population,duration,forecast,R0,incubation-time,recovery-time,rng-seed,infer,num-samples,num-bins,warmup-steps,svi-steps
+1000,20,10,3,2,4,0,svi,1000,,,5000
+1000,20,10,3,2,4,0,mcmc,1000,1,200
+1000,20,10,3,2,4,0,mcmc,1000,2,200
+1000,20,10,3,2,4,0,mcmc,1000,4,200
