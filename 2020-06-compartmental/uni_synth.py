@@ -4,19 +4,23 @@
 import argparse
 import logging
 import math
-import resource
 import pickle
+import resource
+import sys
 from timeit import default_timer
 
 import torch
 
 import pyro
-from pyro.contrib.epidemiology.models import (HeterogeneousSIRModel,
-                                              OverdispersedSEIRModel,
-                                              OverdispersedSIRModel,
-                                              SimpleSEIRModel, SimpleSIRModel,
-                                              SuperspreadingSEIRModel,
-                                              SuperspreadingSIRModel)
+from pyro.contrib.epidemiology.models import (
+    HeterogeneousSIRModel,
+    OverdispersedSEIRModel,
+    OverdispersedSIRModel,
+    SimpleSEIRModel,
+    SimpleSIRModel,
+    SuperspreadingSEIRModel,
+    SuperspreadingSIRModel
+)
 from pyro.contrib.forecast.evaluate import eval_crps, eval_mae, eval_rmse
 from pyro.infer.mcmc.util import summary
 
@@ -148,7 +152,7 @@ def main(args):
     pyro.enable_validation(__debug__)
     pyro.set_rng_seed(args.rng_seed + 20200617)
 
-    result = {}
+    result = {"args": args, "file": __file__, "argv": sys.argv}
 
     truth = generate_data(args)
 
@@ -171,6 +175,7 @@ def main(args):
     if args.outfile:
         with open(args.outfile, "wb") as f:
             pickle.dump(result, f)
+    logging.info("DONE")
     return result
 
 

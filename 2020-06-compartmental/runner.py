@@ -56,10 +56,10 @@ def work(task):
 
 
 def main(args):
+    tasks = []
     with open(args.args_filename) as f:
         reader = csv.reader(f)
         header = next(reader)
-        tasks = []
         for row in reader:
             spec = {k: v for k, v in zip(header, row) if v}
             for seed in args.rng_seed.split(","):
@@ -67,6 +67,7 @@ def main(args):
                 tasks.append((args, spec.copy()))
     if args.shuffle:
         random.shuffle(tasks)
+    num_tasks = len(tasks)
 
     if args.num_workers == 1:
         map_ = map
@@ -74,7 +75,10 @@ def main(args):
         print("Running {} tasks on {} workers".format(len(tasks), args.num_workers))
         map_ = multiprocessing.Pool(args.num_workers).map
     results = list(map_(work, tasks))
-    assert all(results)
+    if args.skip:
+        tasks = [t for t in tasks if t]
+    else:
+        assert all(results)
 
     results.sort()
     if args.outfile:
@@ -82,7 +86,7 @@ def main(args):
             f.write("\n".join(results))
 
     print("-------------------------")
-    print("COMPLETED {} TASKS".format(len(tasks)))
+    print("COMPLETED {}/{} TASKS".format(len(tasks), num_tasks))
     print("-------------------------")
     return results
 
@@ -91,13 +95,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="experiment runner")
     parser.add_argument("--script-filename")
     parser.add_argument("--args-filename")
+    parser.add_argument("--outfile")
     parser.add_argument("--rng-seed", default="0")
     parser.add_argument("--num-workers", type=int, default=CPUS)
     parser.add_argument("--cores-per-worker", type=int)
     parser.add_argument("--shuffle", action="store_true")
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--skip", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--outfile")
     args = parser.parse_args()
 
     if args.cores_per_worker:
