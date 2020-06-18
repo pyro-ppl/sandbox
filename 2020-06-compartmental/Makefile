@@ -10,13 +10,13 @@ watch: FORCE
 
 short_uni_synth: FORCE
 	python runner.py \
-		--outfile=results/short_uni_synth_mcmc \
+		--outfile=results/short_uni_synth_svi \
 		--script-filename=uni_synth.py \
 		--args-filename=short_uni_synth.csv \
 		--rng-seed=0,1,2,3,4,5,6,7,8,9 \
 		--shuffle
 	python runner.py \
-		--outfile=results/short_uni_synth_svi \
+		--outfile=results/short_uni_synth_mcmc \
 		--script-filename=uni_synth.py \
 		--args-filename=short_uni_synth.csv \
 		--cores-per-worker=1 \
