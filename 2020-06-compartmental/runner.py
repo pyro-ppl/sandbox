@@ -8,7 +8,6 @@ import os
 import random
 import subprocess
 import sys
-from collections import OrderedDict
 
 CPUS = multiprocessing.cpu_count()
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -62,8 +61,10 @@ def main(args):
         header = next(reader)
         tasks = []
         for row in reader:
-            command_args = OrderedDict(sorted((k, v) for k, v in zip(header, row) if v))
-            tasks.append((args, command_args))
+            spec = {k: v for k, v in zip(header, row) if v}
+            for seed in args.rng_seed.split(","):
+                spec["rng-seed"] = seed
+                tasks.append((args, spec.copy()))
     if args.shuffle:
         random.shuffle(tasks)
 
@@ -72,7 +73,7 @@ def main(args):
     else:
         print("Running {} tasks on {} workers".format(len(tasks), args.num_workers))
         map_ = multiprocessing.Pool(args.num_workers).map
-    results = map_(work, tasks)
+    results = list(map_(work, tasks))
     assert all(results)
 
     results.sort()
@@ -84,12 +85,13 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="experiment runner")
-    parser.add_argument("-s", "--script-filename")
-    parser.add_argument("-a", "--args-filename")
-    parser.add_argument("-w", "--num-workers", type=int, default=CPUS)
-    parser.add_argument("-cpw", "--cores-per-worker", type=int)
+    parser.add_argument("--script-filename")
+    parser.add_argument("--args-filename")
+    parser.add_argument("--rng-seed", default="0")
+    parser.add_argument("--num-workers", type=int, default=CPUS)
+    parser.add_argument("--cores-per-worker", type=int)
     parser.add_argument("--shuffle", action="store_true")
-    parser.add_argument("-f", "--force", action="store_true")
+    parser.add_argument("--force", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--outfile")
     args = parser.parse_args()
