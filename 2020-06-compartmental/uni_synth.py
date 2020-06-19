@@ -8,7 +8,6 @@ import os
 import pickle
 import resource
 import sys
-from hashlib import sha1
 from timeit import default_timer
 
 import torch
@@ -26,19 +25,18 @@ from pyro.contrib.epidemiology.models import (
 from pyro.contrib.forecast.evaluate import eval_crps, eval_mae, eval_rmse
 from pyro.infer.mcmc.util import summary
 
+from util import RESULTS, get_filename
+
 fmt = '%(process)d %(message)s'
 logging.getLogger("pyro").handlers[0].setFormatter(logging.Formatter(fmt))
 logging.basicConfig(format=fmt, level=logging.INFO)
-
-ROOT = os.path.dirname(os.path.abspath(__file__))
-RESULTS = os.path.join(ROOT, "results")
 
 # Ensure directories exist.
 if not os.path.exists(RESULTS):
     try:
         os.makedirs(RESULTS)
-    except OSError:
-        assert os.path.exists(RESULTS)
+    except FileExistsError:
+        pass
 
 
 def Model(args, data):
@@ -245,9 +243,7 @@ if __name__ == "__main__":
     args = Parser().parse_args()
 
     # Cache output.
-    unique = __file__, sorted(args.__dict__.items())
-    fingerprint = sha1(str(unique).encode()).hexdigest()
-    outfile = os.path.join(RESULTS, fingerprint + ".pkl")
+    outfile = get_filename(__file__, args)
     if not os.path.exists(outfile):
         result = main(args)
         with open(outfile, "wb") as f:

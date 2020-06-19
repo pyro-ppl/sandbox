@@ -1,12 +1,13 @@
 # Copyright Contributors to the Pyro project.
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 import argparse
+import os
 import subprocess
 import sys
-from hashlib import sha1
 from importlib import import_module
+
+from util import get_filename
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 RESULTS = os.path.join(ROOT, "results")
@@ -86,10 +87,7 @@ def main(args):
         # creating a new process and checking in the process.
         script = task[1]
         parser = import_module(script.replace(".py", "")).Parser()
-        args_dict = parser.parse_args(task[2:]).__dict__
-        unique = script, sorted(args_dict.items())
-        fingerprint = sha1(str(unique).encode()).hexdigest()
-        outfile = os.path.join(RESULTS, fingerprint + ".pkl")
+        outfile = get_filename(script, parser.parse_args(task[2:]))
         if os.path.exists(outfile):
             continue
 
