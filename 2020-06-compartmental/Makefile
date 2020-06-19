@@ -15,6 +15,6 @@ clean: FORCE
 	rm -rf temp logs errors
 
 mrclean: FORCE
-	rm -rf results
+	rm -rf data results
 
 FORCE:

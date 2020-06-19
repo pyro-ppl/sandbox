@@ -25,18 +25,11 @@ from pyro.contrib.epidemiology.models import (
 from pyro.contrib.forecast.evaluate import eval_crps, eval_mae, eval_rmse
 from pyro.infer.mcmc.util import summary
 
-from util import RESULTS, get_filename
+from util import get_filename
 
 fmt = '%(process)d %(message)s'
 logging.getLogger("pyro").handlers[0].setFormatter(logging.Formatter(fmt))
 logging.basicConfig(format=fmt, level=logging.INFO)
-
-# Ensure directories exist.
-if not os.path.exists(RESULTS):
-    try:
-        os.makedirs(RESULTS)
-    except FileExistsError:
-        pass
 
 
 def Model(args, data):

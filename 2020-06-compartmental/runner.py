@@ -3,19 +3,45 @@
 
 import argparse
 import os
+import pickle
 import subprocess
 import sys
 from importlib import import_module
 
 from util import get_filename
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
-RESULTS = os.path.join(ROOT, "results")
+
+class Experiment:
+    """
+    An experiment consists of a collection of tasks.
+    Each task generates a datapoint by running a python script.
+    Result datapoints are cached in pickle files named by fingerprint.
+    """
+    def __init__(self, generate_tasks):
+        self.__name__ = generate_tasks.__name__
+        self.tasks = [[sys.executable] + task for task in generate_tasks()]
+        self.files = []
+        for task in self.tasks:
+            script = task[1]
+            parser = import_module(script.replace(".py", "")).Parser()
+            outfile = get_filename(script, parser.parse_args(task[2:]))
+            self.files.append(outfile)
+
+    @property
+    def results(self):
+        """
+        Iterates over the subset of experiment results that have been generated.
+        """
+        for outfile in self.files:
+            if os.path.exists(outfile):
+                with open(outfile, "rb") as f:
+                    result = pickle.load(f)
+                yield result
 
 
+@Experiment
 def short_uni_synth():
     base = [
-        sys.executable,
         "uni_synth.py",
         "--population=1000",
         "--duration=20", "--forecast=10",
@@ -29,7 +55,7 @@ def short_uni_synth():
                           f"--rng-seed={rng_seed}"]
     for num_bins in [1, 2, 4]:
         for num_samples in [200, 500, 1000]:
-            num_warmup = max(200, int(round(0.4 * num_samples)))
+            num_warmup = int(round(0.4 * num_samples))
             if num_bins == 1:
                 num_seeds = 10
             else:
@@ -42,9 +68,9 @@ def short_uni_synth():
                               f"--rng-seed={rng_seed}"]
 
 
+@Experiment
 def long_uni_synth():
     base = [
-        sys.executable,
         "uni_synth.py",
         "--population=100000",
         "--duration=100", "--forecast=30",
@@ -57,7 +83,7 @@ def long_uni_synth():
                           f"--svi-steps={svi_steps}",
                           f"--rng-seed={rng_seed}"]
     for num_samples in [200, 500, 1000, 2000, 5000]:
-        num_warmup = max(200, int(round(0.4 * num_samples)))
+        num_warmup = int(round(0.4 * num_samples))
         for rng_seed in range(10):
             yield base + ["--mcmc",
                           "--num-bins=1",
@@ -66,7 +92,7 @@ def long_uni_synth():
                           f"--rng-seed={rng_seed}"]
     for num_bins in [2, 4]:
         for num_samples in [200, 500, 1000]:
-            num_warmup = max(200, int(round(0.4 * num_samples)))
+            num_warmup = int(round(0.4 * num_samples))
             for rng_seed in range(2):
                 yield base + ["--mcmc",
                               f"--warmup-steps={num_warmup}",
@@ -76,25 +102,15 @@ def long_uni_synth():
 
 
 def main(args):
-    tasks = list(globals()[args.experiment]())
-    for task in tasks:
+    experiment = globals()[args.experiment]
+    for task, outfile in zip(experiment.tasks, experiment.files):
         print(" \\\n  ".join(task))
-        if args.dry_run:
+        if args.dry_run or os.path.exists(outfile):
             continue
-
-        # Optimization: Parse args to compute output filename and check for
-        # previous completion. This is equivalent to but much cheaper than
-        # creating a new process and checking in the process.
-        script = task[1]
-        parser = import_module(script.replace(".py", "")).Parser()
-        outfile = get_filename(script, parser.parse_args(task[2:]))
-        if os.path.exists(outfile):
-            continue
-
         subprocess.check_call(task)
 
     print("-------------------------")
-    print("COMPLETED {} TASKS".format(len(tasks)))
+    print("COMPLETED {} TASKS".format(len(experiment.tasks)))
     print("-------------------------")
 
 
