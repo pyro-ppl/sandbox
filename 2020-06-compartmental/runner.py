@@ -22,12 +22,10 @@ def short_uni_synth():
                           f"--rng-seed={rng_seed}"]
     for num_bins in [1, 2, 4]:
         for num_samples in [200, 500, 1000]:
-            if num_bins > 1:
-                num_seeds = 2
-            elif num_samples > 200:
-                num_seeds = 5
-            else:
+            if num_bins == 1:
                 num_seeds = 10
+            else:
+                num_seeds = 2
             for rng_seed in range(num_seeds):
                 yield base + ["--mcmc",
                               "--warmup-steps=200",
@@ -50,13 +48,16 @@ def long_uni_synth():
                           "--num-samples=1000",
                           f"--svi-steps={svi_steps}",
                           f"--rng-seed={rng_seed}"]
-    for num_bins in [1, 2, 4]:
+    for num_samples in [200, 500, 1000, 2000, 5000]:
+        for rng_seed in range(10):
+            yield base + ["--mcmc",
+                          "--warmup-steps=200",
+                          "--num-bins=1",
+                          f"--num-samples={num_samples}",
+                          f"--rng-seed={rng_seed}"]
+    for num_bins in [2, 4]:
         for num_samples in [200, 500, 1000]:
-            if num_bins > 1:
-                num_seeds = 2
-            else:
-                num_seeds = 10
-            for rng_seed in range(num_seeds):
+            for rng_seed in range(2):
                 yield base + ["--mcmc",
                               "--warmup-steps=200",
                               f"--num-samples={num_samples}",
