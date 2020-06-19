@@ -54,8 +54,6 @@ def long_uni_synth():
         for num_samples in [200, 500, 1000]:
             if num_bins > 1:
                 num_seeds = 2
-            elif num_samples > 200:
-                num_seeds = 5
             else:
                 num_seeds = 10
             for rng_seed in range(num_seeds):

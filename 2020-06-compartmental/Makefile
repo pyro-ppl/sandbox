@@ -8,6 +8,9 @@ lint: FORCE
 short_uni_synth: FORCE
 	python runner.py --experiment=short_uni_synth
 
+long_uni_synth: FORCE
+	python runner.py --experiment=long_uni_synth
+
 clean: FORCE
 	rm -rf temp logs errors
 
