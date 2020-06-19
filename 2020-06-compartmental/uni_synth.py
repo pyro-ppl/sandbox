@@ -187,56 +187,62 @@ def main(args):
     return result
 
 
+class Parser(argparse.ArgumentParser):
+    def __init__(self):
+        super().__init__(description="CompartmentalModel experiments")
+        self.add_argument("--population", default=1000, type=float)
+        self.add_argument("--min-obs-portion", default=0.1, type=float)
+        self.add_argument("--max-obs-portion", default=0.3, type=float)
+        self.add_argument("--duration", default=20, type=int)
+        self.add_argument("--forecast", default=10, type=int)
+        self.add_argument("--R0", default=1.5, type=float)
+        self.add_argument("--recovery-time", default=7.0, type=float)
+        self.add_argument("--incubation-time", default=0.0, type=float)
+        self.add_argument("--concentration", default=math.inf, type=float)
+        self.add_argument("--response-rate", default=0.5, type=float)
+        self.add_argument("--overdispersion", default=0., type=float)
+        self.add_argument("--heterogeneous", action="store_true")
+        self.add_argument("--infer", default="mcmc")
+        self.add_argument("--mcmc", action="store_const", const="mcmc", dest="infer")
+        self.add_argument("--svi", action="store_const", const="svi", dest="infer")
+        self.add_argument("--haar", action="store_true")
+        self.add_argument("--nohaar", action="store_const", const=False, dest="haar")
+        self.add_argument("--haar-full-mass", default=10, type=int)
+        self.add_argument("--num-samples", default=200, type=int)
+        self.add_argument("--smc-particles", default=1024, type=int)
+        self.add_argument("--svi-steps", default=5000, type=int)
+        self.add_argument("--svi-particles", default=32, type=int)
+        self.add_argument("--warmup-steps", type=int)
+        self.add_argument("--num-chains", default=2, type=int)
+        self.add_argument("--max-tree-depth", default=5, type=int)
+        self.add_argument("--arrowhead-mass", action="store_true")
+        self.add_argument("--rng-seed", default=0, type=int)
+        self.add_argument("--num-bins", default=1, type=int)
+        self.add_argument("--double", action="store_true", default=True)
+        self.add_argument("--single", action="store_false", dest="double")
+        self.add_argument("--cuda", action="store_true")
+        self.add_argument("--jit", action="store_true", default=True)
+        self.add_argument("--nojit", action="store_false", dest="jit")
+        self.add_argument("--verbose", action="store_true")
+
+    def parse_args(self, *args, **kwargs):
+        args = super().parse_args(*args, **kwargs)
+        args.population = int(args.population)  # to allow e.g. --population=1e6
+        if args.warmup_steps is None:
+            args.warmup_steps = args.num_samples
+        if args.double:
+            if args.cuda:
+                torch.set_default_tensor_type(torch.cuda.DoubleTensor)
+            else:
+                torch.set_default_dtype(torch.float64)
+        elif args.cuda:
+            torch.set_default_tensor_type(torch.cuda.FloatTensor)
+        return args
+
+
 if __name__ == "__main__":
     assert pyro.__version__.startswith('1.3.1')
-    parser = argparse.ArgumentParser(description="CompartmentalModel experiments")
-    parser.add_argument("--population", default=1000, type=float)
-    parser.add_argument("--min-obs-portion", default=0.1, type=float)
-    parser.add_argument("--max-obs-portion", default=0.3, type=float)
-    parser.add_argument("--duration", default=20, type=int)
-    parser.add_argument("--forecast", default=10, type=int)
-    parser.add_argument("--R0", default=1.5, type=float)
-    parser.add_argument("--recovery-time", default=7.0, type=float)
-    parser.add_argument("--incubation-time", default=0.0, type=float)
-    parser.add_argument("--concentration", default=math.inf, type=float)
-    parser.add_argument("--response-rate", default=0.5, type=float)
-    parser.add_argument("--overdispersion", default=0., type=float)
-    parser.add_argument("--heterogeneous", action="store_true")
-    parser.add_argument("--infer", default="mcmc")
-    parser.add_argument("--mcmc", action="store_const", const="mcmc", dest="infer")
-    parser.add_argument("--svi", action="store_const", const="svi", dest="infer")
-    parser.add_argument("--haar", action="store_true")
-    parser.add_argument("--nohaar", action="store_const", const=False, dest="haar")
-    parser.add_argument("--haar-full-mass", default=10, type=int)
-    parser.add_argument("--num-samples", default=200, type=int)
-    parser.add_argument("--smc-particles", default=1024, type=int)
-    parser.add_argument("--svi-steps", default=5000, type=int)
-    parser.add_argument("--svi-particles", default=32, type=int)
-    parser.add_argument("--warmup-steps", type=int)
-    parser.add_argument("--num-chains", default=2, type=int)
-    parser.add_argument("--max-tree-depth", default=5, type=int)
-    parser.add_argument("--arrowhead-mass", action="store_true")
-    parser.add_argument("--rng-seed", default=0, type=int)
-    parser.add_argument("--num-bins", default=1, type=int)
-    parser.add_argument("--double", action="store_true", default=True)
-    parser.add_argument("--single", action="store_false", dest="double")
-    parser.add_argument("--cuda", action="store_true")
-    parser.add_argument("--jit", action="store_true", default=True)
-    parser.add_argument("--nojit", action="store_false", dest="jit")
-    parser.add_argument("--verbose", action="store_true")
-
-    # Parse args.
-    args = parser.parse_args()
-    args.population = int(args.population)  # to allow e.g. --population=1e6
-    if args.warmup_steps is None:
-        args.warmup_steps = args.num_samples
-    if args.double:
-        if args.cuda:
-            torch.set_default_tensor_type(torch.cuda.DoubleTensor)
-        else:
-            torch.set_default_dtype(torch.float64)
-    elif args.cuda:
-        torch.set_default_tensor_type(torch.cuda.FloatTensor)
+    args = Parser().parse_args()
 
     # Cache output.
     unique = __file__, sorted(args.__dict__.items())
