@@ -2,115 +2,49 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
-import csv
-import multiprocessing
-import os
-import random
 import subprocess
 import sys
 
-CPUS = multiprocessing.cpu_count()
-ENV = os.environ.copy()
-ROOT = os.path.dirname(os.path.abspath(__file__))
-TEMP = os.path.join(ROOT, "temp")
-LOGS = os.path.join(ROOT, "logs")
-ERRORS = os.path.join(ROOT, "errors")
-RESULTS = os.path.join(ROOT, "results")
 
-# Ensure directories exist.
-for path in [TEMP, LOGS, ERRORS, RESULTS]:
-    if not os.path.exists(path):
-        try:
-            os.makedirs(path)
-        except OSError:
-            assert os.path.exists(path)
-
-
-def work(task):
-    args, spec = task
-    basename = (args.script_filename + "." +
-                "_".join("{}={}".format(k, v) for k, v in spec.items()))
-    result_file = os.path.join(RESULTS, basename + ".pkl")
-    if os.path.exists(result_file) and not args.force:
-        return result_file
-    elif args.skip:
-        return None
-
-    temp_file = os.path.join(TEMP, basename + ".pkl")
-    log_file = os.path.join(LOGS, basename + ".txt")
-    spec["outfile"] = temp_file
-    command = ([sys.executable, args.script_filename] +
-               ["--{}={}".format(k, v) for k, v in spec.items()])
-    print(" ".join(command))
-    if args.dry_run:
-        return result_file
-    try:
-        with open(log_file, "w") as f:
-            subprocess.check_call(command, stderr=f, stdout=f, env=ENV)
-        os.rename(temp_file, result_file)  # Use rename to make write atomic.
-        return result_file
-    except subprocess.CalledProcessError as e:
-        pdb_command = [sys.executable, "-m", "pdb", "-cc"] + command[1:-1]
-        msg = "{}\nTo reproduce, run:\n{}".format(e, " \\\n  ".join(pdb_command))
-        print(msg)
-        with open(os.path.join(ERRORS, basename + ".txt"), "w") as f:
-            f.write(msg)
-        return None
+def short_uni_synth():
+    base = [
+        sys.executable,
+        "uni_synth.py",
+        "--population=1000",
+        "--duration=20", "--forecast=10",
+        "--R0=3", "--incubation-time=2", "--recovery-time=4",
+    ]
+    for svi_steps in [1000, 2000, 5000, 10000]:
+        for rng_seed in range(5):
+            yield base + ["--svi",
+                          "--num-samples=1000",
+                          f"--svi-steps={svi_steps}",
+                          f"--rng-seed={rng_seed}"]
+    for num_bins in [1, 2, 4]:
+        for num_samples in [200, 500, 1000]:
+            for rng_seed in range(1):
+                yield base + ["--mcmc",
+                              "--warmup-steps=200",
+                              f"--num-samples={num_samples}",
+                              f"--rng-seed={rng_seed}"]
 
 
 def main(args):
-    tasks = []
-    with open(args.args_filename) as f:
-        reader = csv.reader(f)
-        header = next(reader)
-        for row in reader:
-            spec = {k: v for k, v in zip(header, row) if v}
-            for seed in args.rng_seed.split(","):
-                spec["rng-seed"] = seed
-                tasks.append((args, spec.copy()))
-    if args.shuffle:
-        random.shuffle(tasks)
-
-    if args.num_workers == 1:
-        map_ = map
-    else:
-        print("Running {} tasks on {} workers".format(len(tasks), args.num_workers))
-        map_ = multiprocessing.Pool(args.num_workers).map
-    results = list(map_(work, tasks))
-    if args.skip:
-        results = [r for r in results if r is not None]
-    else:
-        assert all(results)
-
-    results.sort()
-    if args.outfile:
-        with open(args.outfile, "w") as f:
-            f.write("\n".join(results))
+    tasks = list(globals()[args.experiment]())
+    for task in tasks:
+        print(" \\\n  ".join(task))
+        if not args.dry_run:
+            subprocess.check_call(task)
 
     print("-------------------------")
-    print("COMPLETED {}/{} TASKS".format(len(results), len(tasks)))
+    print("COMPLETED {} TASKS".format(len(tasks)))
     print("-------------------------")
-    return results
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="experiment runner")
-    parser.add_argument("--script-filename")
-    parser.add_argument("--args-filename")
-    parser.add_argument("--outfile")
-    parser.add_argument("--rng-seed", default="0")
-    parser.add_argument("--num-workers", type=int, default=CPUS)
-    parser.add_argument("--cores-per-worker", type=int)
-    parser.add_argument("--shuffle", action="store_true")
-    parser.add_argument("--force", action="store_true")
-    parser.add_argument("--skip", action="store_true")
+    parser.add_argument("--experiment")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
-
-    if args.cores_per_worker:
-        args.num_workers = max(1, CPUS // args.cores_per_worker)
-        ENV["OMP_NUM_THREAD"] = min(CPUS, 2 * args.cores_per_worker)
-    if args.dry_run:
-        args.num_workers = 1
 
     main(args)

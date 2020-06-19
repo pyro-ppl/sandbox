@@ -8,6 +8,7 @@ import os
 import pickle
 import resource
 import sys
+from hashlib import sha1
 from timeit import default_timer
 
 import torch
@@ -28,6 +29,16 @@ from pyro.infer.mcmc.util import summary
 fmt = '%(process)d %(message)s'
 logging.getLogger("pyro").handlers[0].setFormatter(logging.Formatter(fmt))
 logging.basicConfig(format=fmt, level=logging.INFO)
+
+ROOT = os.path.dirname(os.path.abspath(__file__))
+RESULTS = os.path.join(ROOT, "results")
+
+# Ensure directories exist.
+if not os.path.exists(RESULTS):
+    try:
+        os.makedirs(RESULTS)
+    except OSError:
+        assert os.path.exists(RESULTS)
 
 
 def Model(args, data):
@@ -153,15 +164,7 @@ def main(args):
     pyro.enable_validation(__debug__)
     pyro.set_rng_seed(args.rng_seed + 20200617)
 
-    result = {"args": args, "file": __file__, "argv": sys.argv}
-    if args.outfile and os.path.exists(args.outfile):
-        # Simply update metadata.
-        with open(args.outfile, "rb") as f:
-            result.update(pickle.load(f))
-        with open(args.outfile, "wb") as f:
-            pickle.dump(result, f)
-        logging.info("DONE")
-        return result
+    result = {"file": __file__, "args": args, "argv": sys.argv}
 
     truth = generate_data(args)
 
@@ -180,10 +183,6 @@ def main(args):
     result["evaluate"] = evaluate(args, truth, model, samples)
     result["times"] = {"infer": t1 - t0, "predict": t2 - t1}
     result["rusage"] = resource.getrusage(resource.RUSAGE_SELF)
-
-    if args.outfile:
-        with open(args.outfile, "wb") as f:
-            pickle.dump(result, f)
     logging.info("DONE")
     return result
 
@@ -225,10 +224,10 @@ if __name__ == "__main__":
     parser.add_argument("--jit", action="store_true", default=True)
     parser.add_argument("--nojit", action="store_false", dest="jit")
     parser.add_argument("--verbose", action="store_true")
-    parser.add_argument("--outfile")
+
+    # Parse args.
     args = parser.parse_args()
     args.population = int(args.population)  # to allow e.g. --population=1e6
-
     if args.warmup_steps is None:
         args.warmup_steps = args.num_samples
     if args.double:
@@ -239,4 +238,12 @@ if __name__ == "__main__":
     elif args.cuda:
         torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
-    main(args)
+    # Cache output.
+    unique = __file__, sorted(args.__dict__.items())
+    fingerprint = sha1(str(unique).encode()).hexdigest()
+    outfile = os.path.join(RESULTS, fingerprint + ".pkl")
+    if not os.path.exists(outfile):
+        result = main(args)
+        with open(outfile, "wb") as f:
+            pickle.dump(result, f)
+        logging.info("Saved {}".format(outfile))
