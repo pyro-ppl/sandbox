@@ -109,7 +109,7 @@ class Model(CompartmentalModel):
         R0 = pyro.sample("R0", dist.LogNormal(1., 0.5))  # Weak prior.
         external_rate = pyro.sample("external_rate", dist.LogNormal(-2, 2))
         rho = pyro.sample("rho", dist.Beta(10, 10))  # About 50% response rate.
-        mu = pyro.sample("mu", dist.Beta(1, 100))  # About 1% mortality rate.
+        mu = pyro.sample("mu", dist.Beta(2, 100))  # About 2% mortality rate.
         drift = pyro.sample("drift", dist.LogNormal(-3, 1.))
         od = pyro.sample("od", dist.Beta(2, 6))
 
@@ -197,6 +197,10 @@ def infer_svi(args, model):
                            num_samples=args.num_samples,
                            num_steps=args.svi_steps,
                            num_particles=args.svi_particles,
+                           learning_rate=args.learning_rate,
+                           learning_rate_decay=args.learning_rate_decay,
+                           betas=args.betas,
+                           init_scale=args.init_scale,
                            jit=args.jit)
 
     return {"loss_initial": losses[0], "loss_final": losses[-1]}
@@ -347,6 +351,10 @@ class Parser(argparse.ArgumentParser):
         self.add_argument("--smc-particles", default=1024, type=int)
         self.add_argument("--svi-steps", default=5000, type=int)
         self.add_argument("--svi-particles", default=32, type=int)
+        self.add_argument("--learning-rate", default=0.1, type=float)
+        self.add_argument("--learning-rate-decay", default=0.01, type=float)
+        self.add_argument("--betas", default="0.8,0.99")
+        self.add_argument("--init-scale", default=0.1, type=float)
         self.add_argument("--warmup-steps", type=int)
         self.add_argument("--num-chains", default=2, type=int)
         self.add_argument("--max-tree-depth", default=5, type=int)
@@ -361,6 +369,7 @@ class Parser(argparse.ArgumentParser):
 
     def parse_args(self, *args, **kwargs):
         args = super().parse_args(*args, **kwargs)
+        args.betas = tuple(map(float, args.betas.split(",")))
         assert args.forecast > 0
         if args.warmup_steps is None:
             args.warmup_steps = args.num_samples
