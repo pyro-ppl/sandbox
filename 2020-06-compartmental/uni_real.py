@@ -2,15 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import datetime
 import logging
 import os
 import pickle
 import resource
 import sys
 import urllib.request
-from timeit import default_timer
 from collections import OrderedDict
+from timeit import default_timer
 
+import numpy as np
 import pandas as pd
 import torch
 
@@ -19,8 +21,6 @@ import pyro.distributions as dist
 from pyro.contrib.epidemiology import CompartmentalModel, binomial_dist, infection_dist
 from pyro.contrib.forecast.evaluate import eval_crps, eval_mae, eval_rmse
 from pyro.infer.mcmc.util import summary
-from pyro.ops.tensor_utils import convolve
-
 from util import DATA, get_filename
 
 fmt = '%(process)d %(message)s'
@@ -66,28 +66,26 @@ def load_data(args):
     cum_cases = torch.tensor(cum_cases, dtype=torch.get_default_dtype()).T.contiguous()
     cum_deaths = torch.tensor(cum_deaths, dtype=torch.get_default_dtype()).T.contiguous()
     assert cum_cases.shape == cum_deaths.shape
-    logging.info(f"Data shape = {tuple(cum_cases.shape)}, {tuple(cum_deaths.shape)}")
+    start_date = datetime.datetime.strptime(cum_cases_df.columns[11], "%m/%d/%y")
 
-    # Convert from cumulative to difference data, and convolve to ensure positivity.
-    T = len(cum_cases)
-    for window in range(1, 100):
-        kernel = torch.ones(window) / window
-        smooth_cases = convolve(cum_cases.T, kernel).T[:T].round()
-        smooth_deaths = convolve(cum_deaths.T, kernel).T[:T].round()
-        new_cases = smooth_cases[1:] - smooth_cases[:-1]
-        new_deaths = smooth_deaths[1:] - smooth_deaths[:-1]
-        if (new_cases >= 0).all() and (new_deaths >= 0).all():
-            break
-    logging.info(f"window = {window}, shape = {tuple(new_cases.shape)}")
+    # Convert from cumulative to difference data, and clamp to ensure positivity.
+    new_cases = (cum_cases[1:] - cum_cases[:-1]).clamp(min=0)
+    new_deaths = (cum_deaths[1:] - cum_deaths[:-1]).clamp(min=0)
+    start_date += datetime.timedelta(days=1)
 
     # Truncate and select a single county.
-    new_cases = new_cases[args.truncate:, args.county].contiguous()
-    new_deaths = new_deaths[args.truncate:, args.county].contiguous()
+    truncate = (datetime.datetime.strptime(args.start_date, "%m/%d/%y") - start_date).days
+    assert truncate > 0, "start date is too early"
+    new_cases = new_cases[truncate:, args.county].contiguous()
+    new_deaths = new_deaths[truncate:, args.county].contiguous()
     population = list(counties.values())[args.county]
+    start_date += datetime.timedelta(days=truncate)
+    logging.info(f"Data shape = {tuple(new_cases.shape)}")
 
     return {"population": population,
             "new_cases": new_cases,
-            "new_deaths": new_deaths}
+            "new_deaths": new_deaths,
+            "start_date": start_date}
 
 
 class Model(CompartmentalModel):
@@ -111,19 +109,23 @@ class Model(CompartmentalModel):
         rho = pyro.sample("rho", dist.Beta(10, 10))  # About 50% response rate.
         mu = pyro.sample("mu", dist.Beta(2, 100))  # About 2% mortality rate.
         drift = pyro.sample("drift", dist.LogNormal(-3, 1.))
-        od = pyro.sample("od", dist.Beta(2, 6))
 
-        return R0, external_rate, tau_e, tau_i, rho, mu, drift, od
+        # Assume observations are overdispersed and zero-inflated.
+        # od = pyro.sample("od", dist.Beta(2, 6))
+        od = 0.6  # FIXME fix overdispersion inference.
+        zi = pyro.sample("zi", dist.Beta(2, 6))
+
+        return R0, external_rate, tau_e, tau_i, rho, mu, drift, od, zi
 
     def initialize(self, params):
-        R0, external_rate, tau_e, tau_i, rho, mu, drift, od = params
+        R0, external_rate, tau_e, tau_i, rho, mu, drift, od, zi = params
 
         # Start with no local infections and close to basic reproductive number.
         return {"S": self.population, "E": 0, "I": 0,
                 "R_factor": torch.tensor(0.98)}
 
     def transition(self, params, state, t):
-        R0, external_rate, tau_e, tau_i, rho, mu, drift, od = params
+        R0, external_rate, tau_e, tau_i, rho, mu, drift, od, zi = params
 
         # Assume effective reproductive number Rt varies in time.
         sigmoid = torch.distributions.transforms.SigmoidTransform()
@@ -157,10 +159,14 @@ class Model(CompartmentalModel):
         # Condition on observations.
         t_is_observed = isinstance(t, slice) or t < self.duration
         pyro.sample("new_cases_{}".format(t),
-                    binomial_dist(S2E, rho, overdispersion=od),
+                    dist.ZeroInflatedDistribution(
+                        zi, binomial_dist(S2E, (rho / (1 - zi)).clamp(max=1),
+                                          overdispersion=od)),
                     obs=self.new_cases[t] if t_is_observed else None)
         pyro.sample("new_deaths_{}".format(t),
-                    binomial_dist(I2R, mu, overdispersion=od),
+                    dist.ZeroInflatedDistribution(
+                        zi, binomial_dist(I2R, (mu / (1 - zi)).clamp(max=1),
+                                          overdispersion=od)),
                     obs=self.new_deaths[t] if t_is_observed else None)
 
 
@@ -197,10 +203,11 @@ def infer_svi(args, model):
                            num_samples=args.num_samples,
                            num_steps=args.svi_steps,
                            num_particles=args.svi_particles,
+                           guide_rank=args.guide_rank,
+                           init_scale=args.init_scale,
                            learning_rate=args.learning_rate,
                            learning_rate_decay=args.learning_rate_decay,
                            betas=args.betas,
-                           init_scale=args.init_scale,
                            jit=args.jit)
 
     return {"loss_initial": losses[0], "loss_final": losses[-1]}
@@ -211,41 +218,67 @@ def predict(args, model, truth):
 
     if args.plot:
         import matplotlib.pyplot as plt
-        fig, axes = plt.subplots(3, 1, figsize=(6, 8), sharex=True)
+        import matplotlib.dates as mdates
+        fig, axes = plt.subplots(4, 1, figsize=(8, 8), sharex=True)
+        shelter_in_place = datetime.datetime.strptime("3/16/20", "%m/%d/%y")
+        axes[-1].text(shelter_in_place + datetime.timedelta(days=1), 0.2,
+                      "shelter in place")
+        for ax in axes:
+            ax.axvline(shelter_in_place, color="gray", linestyle=":", lw=1)
+            ax.axvline(truth["start_date"] + datetime.timedelta(days=model.duration),
+                       color="gray", lw=1)
+        axes[0].set_title("{}, population {}".format(
+            list(counties)[args.county], truth["population"]))
+        time = np.array([truth["start_date"] + datetime.timedelta(days=t)
+                         for t in range(model.duration + args.forecast)])
 
         # Plot forecasted series.
+        num_samples = samples["R0"].size(0)
         for name, ax in zip(["new_cases", "new_deaths"], axes):
             pred = samples[name][..., model.duration:]
-            time = torch.arange(model.duration + args.forecast)
             median = pred.median(dim=0).values
-            p05 = pred.kthvalue(int(round(0.5 + 0.05 * args.num_samples)), dim=0).values
-            p95 = pred.kthvalue(int(round(0.5 + 0.95 * args.num_samples)), dim=0).values
+            p05 = pred.kthvalue(int(round(0.5 + 0.05 * num_samples)), dim=0).values
+            p95 = pred.kthvalue(int(round(0.5 + 0.95 * num_samples)), dim=0).values
             ax.fill_between(time[model.duration:], p05, p95, color="red", alpha=0.3,
                             label="90% CI")
             ax.plot(time[model.duration:], median, "r-", label="median")
             ax.plot(time, truth[name], "k--", label="truth")
-            ax.axvline(model.duration - 0.5, color="gray", lw=1)
             ax.set_yscale("log")
             ax.set_ylim(1, None)
-            ax.set_ylabel(f"{name} / day")
+            ax.set_ylabel(f"{name.replace('_', ' ')} / day")
             ax.legend(loc="upper left")
+
+        # Plot the latent time series.
+        ax = axes[2]
+        for name, color in zip(["E", "I"], ["red", "blue"]):
+            value = samples[name]
+            median = value.median(dim=0).values
+            p05 = value.kthvalue(int(round(0.5 + 0.05 * num_samples)), dim=0).values
+            p95 = value.kthvalue(int(round(0.5 + 0.95 * num_samples)), dim=0).values
+            ax.fill_between(time, p05, p95, color=color, alpha=0.3)
+            ax.plot(time, median, color=color, label=name)
+        ax.set_yscale("log")
+        ax.set_ylim(1, None)
+        ax.set_ylabel("# people")
+        ax.legend(loc="best")
 
         # Plot Rt time series.
         Rt = samples["Rt"]
         median = Rt.median(dim=0).values
-        p05 = Rt.kthvalue(int(round(0.5 + 0.05 * args.num_samples)), dim=0).values
-        p95 = Rt.kthvalue(int(round(0.5 + 0.95 * args.num_samples)), dim=0).values
-        axes[2].fill_between(time, p05, p95, color="red", alpha=0.3, label="90% CI")
-        axes[2].plot(time, median, "r-", label="median")
-        axes[2].axvline(model.duration - 0.5, color="gray", lw=1)
-        axes[2].set_ylim(0, None)
-        axes[2].set_ylabel("Rt")
-        axes[2].legend(loc="best")
+        p05 = Rt.kthvalue(int(round(0.5 + 0.05 * num_samples)), dim=0).values
+        p95 = Rt.kthvalue(int(round(0.5 + 0.95 * num_samples)), dim=0).values
+        ax = axes[3]
+        ax.fill_between(time, p05, p95, color="red", alpha=0.3, label="90% CI")
+        ax.plot(time, median, "r-", label="median")
+        ax.set_ylim(0, None)
+        ax.set_ylabel("Rt")
+        ax.legend(loc="best")
 
-        axes[-1].set_xlim(0, len(time) - 1)
-        axes[-1].set_xlabel("day")
-        axes[0].set_title("{}, population {}".format(
-            list(counties)[args.county], truth["population"]))
+        ax.set_xlim(time[0], time[-1])
+        locator = mdates.AutoDateLocator(minticks=5, maxticks=15)
+        formatter = mdates.ConciseDateFormatter(locator)
+        ax.xaxis.set_major_locator(locator)
+        ax.xaxis.set_major_formatter(formatter)
         plt.tight_layout()
         plt.subplots_adjust(hspace=0)
 
@@ -277,7 +310,7 @@ def evaluate(args, truth, model, samples):
         std = value.std().item()
         logging.info(f"{name} = {mean:0.3g} \u00B1 {std:0.3g}")
 
-    if args.plot:
+    if args.plot and args.infer == "mcmc":
         # Plot pairwise joint distributions for selected variables.
         import matplotlib.pyplot as plt
         N = len(covariates)
@@ -339,7 +372,7 @@ class Parser(argparse.ArgumentParser):
         super().__init__(description="CompartmentalModel experiments")
         self.add_argument("--county", default=0, type=int,
                           help="which SF Bay Area county, 0-8")
-        self.add_argument("--truncate", default=30, type=int)
+        self.add_argument("--start-date", default="2/1/20")
         self.add_argument("--forecast", default=14, type=int)
         self.add_argument("--recovery-time", default=14.0, type=float)
         self.add_argument("--incubation-time", default=5.5, type=float)
@@ -347,6 +380,8 @@ class Parser(argparse.ArgumentParser):
         self.add_argument("--mcmc", action="store_const", const="mcmc", dest="infer")
         self.add_argument("--svi", action="store_const", const="svi", dest="infer")
         self.add_argument("--haar-full-mass", default=10, type=int)
+        self.add_argument("--guide-rank", type=int)
+        self.add_argument("--init-scale", default=0.01, type=float)
         self.add_argument("--num-samples", default=200, type=int)
         self.add_argument("--smc-particles", default=1024, type=int)
         self.add_argument("--svi-steps", default=5000, type=int)
@@ -354,7 +389,6 @@ class Parser(argparse.ArgumentParser):
         self.add_argument("--learning-rate", default=0.1, type=float)
         self.add_argument("--learning-rate-decay", default=0.01, type=float)
         self.add_argument("--betas", default="0.8,0.99")
-        self.add_argument("--init-scale", default=0.1, type=float)
         self.add_argument("--warmup-steps", type=int)
         self.add_argument("--num-chains", default=2, type=int)
         self.add_argument("--max-tree-depth", default=5, type=int)
