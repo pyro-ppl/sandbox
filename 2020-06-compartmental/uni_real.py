@@ -74,7 +74,7 @@ def load_data(args):
     start_date += datetime.timedelta(days=1)
 
     # Truncate and select a single county.
-    truncate = (datetime.datetime.strptime(args.start_date, "%m/%d/%y") - start_date).days
+    truncate = (args.start_date - start_date).days
     assert truncate > 0, "start date is too early"
     new_cases = new_cases[truncate:, args.county].contiguous()
     new_deaths = new_deaths[truncate:, args.county].contiguous()
@@ -101,6 +101,11 @@ class Model(CompartmentalModel):
         self.new_cases = new_cases
         self.new_deaths = new_deaths
 
+        # Intervene via a step function.
+        t1 = (args.intervene_date - args.start_date).days
+        t2 = self.duration + args.forecast
+        self.intervene = torch.cat([torch.zeros(t1), torch.ones(t2 - t1)])
+
     def global_model(self):
         tau_e = self.incubation_time
         tau_i = self.recovery_time
@@ -126,6 +131,9 @@ class Model(CompartmentalModel):
 
     def transition(self, params, state, t):
         R0, external_rate, tau_e, tau_i, rho, mu, drift, od, zi = params
+
+        # Assume drift is 4x larger during various interventions.
+        drift = drift * (0.25 + 0.75 * self.intervene[t])
 
         # Assume effective reproductive number Rt varies in time.
         sigmoid = torch.distributions.transforms.SigmoidTransform()
@@ -373,6 +381,7 @@ class Parser(argparse.ArgumentParser):
         self.add_argument("--county", default=0, type=int,
                           help="which SF Bay Area county, 0-8")
         self.add_argument("--start-date", default="2/1/20")
+        self.add_argument("--intervene-date", default="3/1/20")
         self.add_argument("--forecast", default=14, type=int)
         self.add_argument("--recovery-time", default=14.0, type=float)
         self.add_argument("--incubation-time", default=5.5, type=float)
@@ -403,10 +412,20 @@ class Parser(argparse.ArgumentParser):
 
     def parse_args(self, *args, **kwargs):
         args = super().parse_args(*args, **kwargs)
-        args.betas = tuple(map(float, args.betas.split(",")))
+
         assert args.forecast > 0
+
+        args.betas = tuple(map(float, args.betas.split(",")))
+
+        # Parse dates.
+        for name, value in args.__dict__.items():
+            if name.endswith("_date"):
+                value = datetime.datetime.strptime(value, "%m/%d/%y")
+                setattr(args, name, value)
+
         if args.warmup_steps is None:
             args.warmup_steps = args.num_samples
+
         if args.double:
             if args.cuda:
                 torch.set_default_tensor_type(torch.cuda.DoubleTensor)
@@ -414,6 +433,7 @@ class Parser(argparse.ArgumentParser):
                 torch.set_default_dtype(torch.float64)
         elif args.cuda:
             torch.set_default_tensor_type(torch.cuda.FloatTensor)
+
         return args
 
 
