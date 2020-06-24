@@ -132,9 +132,8 @@ class Model(CompartmentalModel):
         rho = pyro.sample("rho", dist.Beta(10, 10))  # About 50% response rate.
         mu = pyro.sample("mu", dist.Beta(2, 100))  # About 2% mortality rate.
         drift = pyro.sample("drift", dist.LogNormal(-3, 1.))
-        od1 = pyro.sample("od1", dist.Uniform(0, 2))
-        od2 = pyro.sample("od2", dist.Uniform(0, 2))
-        return R0, external_rate, tau_e, tau_i, rho, mu, drift, od1, od2
+        od = pyro.sample("od", dist.Beta(1, 3))
+        return R0, external_rate, tau_e, tau_i, rho, mu, drift, od
 
     def initialize(self, params):
         # Start with no local infections and close to basic reproductive number.
@@ -142,7 +141,7 @@ class Model(CompartmentalModel):
                 "R_factor": torch.tensor(0.98)}
 
     def transition(self, params, state, t):
-        R0, external_rate, tau_e, tau_i, rho, mu, drift, od1, od2 = params
+        R0, external_rate, tau_e, tau_i, rho, mu, drift, od = params
 
         # Assume drift is 4x larger after various interventions begin.
         drift = drift * (0.25 + 0.75 * self.intervene[t])
@@ -162,11 +161,11 @@ class Model(CompartmentalModel):
                                          num_susceptible=state["S"],
                                          num_infectious=state["I"] + I_external,
                                          population=self.population,
-                                         overdispersion=od1))
+                                         overdispersion=od))
         E2I = pyro.sample("E2I_{}".format(t),
-                          binomial_dist(state["E"], 1 / tau_e, overdispersion=od1))
+                          binomial_dist(state["E"], 1 / tau_e, overdispersion=od))
         I2R = pyro.sample("I2R_{}".format(t),
-                          binomial_dist(state["I"], 1 / tau_i, overdispersion=od1))
+                          binomial_dist(state["I"], 1 / tau_i, overdispersion=od))
 
         # Update compartments and heterogeneous variables.
         state["S"] = state["S"] - S2E
@@ -177,12 +176,11 @@ class Model(CompartmentalModel):
         # Condition on observations.
         t_is_observed = isinstance(t, slice) or t < self.duration
         pyro.sample("new_cases_{}".format(t),
-                    binomial_dist(S2E, rho, overdispersion=od2),
+                    binomial_dist(S2E, rho, overdispersion=od),
                     obs=self.new_cases[t] if t_is_observed else None)
         pyro.sample("new_deaths_{}".format(t),
-                    binomial_dist(I2R, mu, overdispersion=od2),
+                    binomial_dist(I2R, mu, overdispersion=od),
                     obs=self.new_deaths[t] if t_is_observed else None)
-
 
 def _item(x):
     if isinstance(x, torch.Tensor):
@@ -258,7 +256,7 @@ def predict(args, model, truth):
             ax.plot(time[model.duration:], median, "r-", label="median")
             ax.plot(time, truth[name], "k--", label="truth")
             ax.set_yscale("log")
-            ax.set_ylim(1, None)
+            ax.set_ylim(0.5, None)
             ax.set_ylabel(f"{name.replace('_', ' ')} / day")
             ax.legend(loc="upper left")
 
@@ -272,7 +270,7 @@ def predict(args, model, truth):
             ax.fill_between(time, p05, p95, color=color, alpha=0.3)
             ax.plot(time, median, color=color, label=name)
         ax.set_yscale("log")
-        ax.set_ylim(1, None)
+        ax.set_ylim(0.5, None)
         ax.set_ylabel("# people")
         ax.legend(loc="best")
 
