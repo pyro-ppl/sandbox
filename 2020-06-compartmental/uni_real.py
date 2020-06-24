@@ -4,6 +4,7 @@
 import argparse
 import datetime
 import logging
+import math
 import os
 import pickle
 import resource
@@ -28,7 +29,6 @@ from util import DATA, get_filename
 fmt = '%(process)d %(message)s'
 logging.getLogger("pyro").handlers[0].setFormatter(logging.Formatter(fmt))
 logging.basicConfig(format=fmt, level=logging.INFO)
-
 
 # Misc California county populations as of early 2020.
 counties = OrderedDict([
@@ -106,6 +106,9 @@ def load_data(args):
             "start_date": start_date}
 
 
+sigmoid = torch.distributions.transforms.SigmoidTransform()
+
+
 class Model(CompartmentalModel):
     def __init__(self, args, population, new_cases, new_deaths):
         assert new_cases.dim() == 1
@@ -129,30 +132,37 @@ class Model(CompartmentalModel):
         tau_i = self.recovery_time
         R0 = pyro.sample("R0", dist.LogNormal(1., 0.5))  # Weak prior.
         external_rate = pyro.sample("external_rate", dist.LogNormal(-2, 2))
-        rho = pyro.sample("rho", dist.Beta(10, 10))  # About 50% response rate.
+        rho0 = pyro.sample("rho0", dist.Beta(10, 10))  # About 50% response rate.
         mu = pyro.sample("mu", dist.Beta(2, 100))  # About 2% mortality rate.
-        drift = pyro.sample("drift", dist.LogNormal(-3, 1.))
-        od = pyro.sample("od", dist.Beta(1, 3))
-        return R0, external_rate, tau_e, tau_i, rho, mu, drift, od
+        R_drift = pyro.sample("R_drift", dist.LogNormal(math.log(0.1), 1.))
+        rho_drift = pyro.sample("rho_drift", dist.LogNormal(math.log(0.01), 1.))
+        od = pyro.sample("od", dist.Beta(2, 6))
+        return R0, external_rate, tau_e, tau_i, rho0, mu, R_drift, rho_drift, od
 
     def initialize(self, params):
-        # Start with no local infections and close to basic reproductive number.
+        R0, external_rate, tau_e, tau_i, rho0, mu, R_drift, rho_drift, od = params
+
+        # Start with no local infections and initial Brownian motion.
         return {"S": self.population, "E": 0, "I": 0,
-                "R_factor": torch.tensor(0.98)}
+                "R_motion": sigmoid.inv(torch.tensor(0.98)),
+                "rho_motion": torch.tensor(0.)}
 
     def transition(self, params, state, t):
-        R0, external_rate, tau_e, tau_i, rho, mu, drift, od = params
+        R0, external_rate, tau_e, tau_i, rho0, mu, R_drift, rho_drift, od = params
 
         # Assume drift is 4x larger after various interventions begin.
-        drift = drift * (0.25 + 0.75 * self.intervene[t])
+        R_drift = R_drift * (0.25 + 0.75 * self.intervene[t])
+        rho_drift = rho_drift * (0.25 + 0.75 * self.intervene[t])
 
-        # Assume effective reproductive number Rt varies in time.
-        sigmoid = torch.distributions.transforms.SigmoidTransform()
-        R_factor = pyro.sample("R_factor_{}".format(t),
-                               dist.TransformedDistribution(
-                                   dist.Normal(sigmoid.inv(state["R_factor"]), drift),
-                                   sigmoid))
-        Rt = pyro.deterministic("Rt_{}".format(t), R0 * R_factor, event_dim=0)
+        # Assume reproductive number Rt and response rate rho vary in time.
+        R_motion = pyro.sample("R_motion_{}".format(t),
+                               dist.Normal(state["R_motion"], R_drift))
+        rho_motion = pyro.sample("rho_motion_{}".format(t),
+                                 dist.Normal(state["rho_motion"], rho_drift))
+        Rt = pyro.deterministic("Rt_{}".format(t),
+                                R0 * sigmoid(R_motion), event_dim=0)
+        rho = pyro.deterministic("rho_{}".format(t),
+                                 sigmoid(sigmoid.inv(rho0) + rho_motion), event_dim=0)
         I_external = external_rate * tau_i / Rt
 
         # Sample flows between compartments.
@@ -171,7 +181,8 @@ class Model(CompartmentalModel):
         state["S"] = state["S"] - S2E
         state["E"] = state["E"] + S2E - E2I
         state["I"] = state["I"] + E2I - I2R
-        state["R_factor"] = R_factor
+        state["R_motion"] = R_motion
+        state["rho_motion"] = rho_motion
 
         # Condition on observations.
         t_is_observed = isinstance(t, slice) or t < self.duration
@@ -227,73 +238,75 @@ def infer_svi(args, model):
 
 def predict(args, model, truth):
     samples = model.predict(forecast=args.forecast)
+    if not args.plot:
+        return samples
 
-    if args.plot:
-        import matplotlib.pyplot as plt
-        import matplotlib.dates as mdates
-        fig, axes = plt.subplots(4, 1, figsize=(8, 8), sharex=True)
-        shelter_in_place = datetime.datetime.strptime("3/16/20", "%m/%d/%y")
-        axes[-1].text(shelter_in_place + datetime.timedelta(days=1), 0.2,
-                      "shelter in place")
-        for ax in axes:
-            ax.axvline(shelter_in_place, color="black", linestyle=":", lw=1, alpha=0.3)
-            ax.axvline(truth["start_date"] + datetime.timedelta(days=model.duration),
-                       color="black", lw=1, alpha=0.3)
-        axes[0].set_title("{}, population {}".format(
-            list(counties)[args.county], truth["population"]))
-        time = np.array([truth["start_date"] + datetime.timedelta(days=t)
-                         for t in range(model.duration + args.forecast)])
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    fig, axes = plt.subplots(5, 1, figsize=(8, 8), sharex=True)
+    shelter_in_place = datetime.datetime.strptime("3/16/20", "%m/%d/%y")
+    axes[-1].text(shelter_in_place + datetime.timedelta(days=1), -0.25,
+                  "shelter in place", horizontalalignment='center')
+    for ax in axes:
+        ax.axvline(shelter_in_place, color="black", linestyle=":", lw=1, alpha=0.3)
+        ax.axvline(truth["start_date"] + datetime.timedelta(days=model.duration),
+                   color="black", lw=1, alpha=0.3)
+    axes[0].set_title("{}, population {}".format(
+        list(counties)[args.county], truth["population"]))
+    time = np.array([truth["start_date"] + datetime.timedelta(days=t)
+                     for t in range(model.duration + args.forecast)])
 
-        # Plot forecasted series.
-        num_samples = samples["R0"].size(0)
-        for name, ax in zip(["new_cases", "new_deaths"], axes):
-            pred = samples[name][..., model.duration:]
-            median = pred.median(dim=0).values
-            p05 = pred.kthvalue(int(round(0.5 + 0.05 * num_samples)), dim=0).values
-            p95 = pred.kthvalue(int(round(0.5 + 0.95 * num_samples)), dim=0).values
-            ax.fill_between(time[model.duration:], p05, p95, color="red", alpha=0.3,
-                            label="90% CI")
-            ax.plot(time[model.duration:], median, "r-", label="median")
-            ax.plot(time, truth[name], "k--", label="truth")
-            ax.set_yscale("log")
-            ax.set_ylim(0.5, None)
-            ax.set_ylabel(f"{name.replace('_', ' ')} / day")
-            ax.legend(loc="upper left")
-
-        # Plot the latent time series.
-        ax = axes[2]
-        for name, color in zip(["E", "I"], ["red", "blue"]):
-            value = samples[name]
-            median = value.median(dim=0).values
-            p05 = value.kthvalue(int(round(0.5 + 0.05 * num_samples)), dim=0).values
-            p95 = value.kthvalue(int(round(0.5 + 0.95 * num_samples)), dim=0).values
-            ax.fill_between(time, p05, p95, color=color, alpha=0.3)
-            ax.plot(time, median, color=color, label=name)
+    # Plot forecasted series.
+    num_samples = samples["R0"].size(0)
+    for name, ax in zip(["new_cases", "new_deaths"], axes):
+        pred = samples[name][..., model.duration:]
+        median = pred.median(dim=0).values
+        p05 = pred.kthvalue(int(round(0.5 + 0.05 * num_samples)), dim=0).values
+        p95 = pred.kthvalue(int(round(0.5 + 0.95 * num_samples)), dim=0).values
+        ax.fill_between(time[model.duration:], p05, p95, color="red", alpha=0.3,
+                        label="90% CI")
+        ax.plot(time[model.duration:], median, "r-", label="median")
+        ax.plot(time, truth[name], "k--", label="truth")
         ax.set_yscale("log")
         ax.set_ylim(0.5, None)
-        ax.set_ylabel("# people")
-        ax.legend(loc="best")
+        ax.set_ylabel(f"{name.replace('_', ' ')} / day")
+        ax.legend(loc="upper left")
 
-        # Plot Rt time series.
-        Rt = samples["Rt"]
-        median = Rt.median(dim=0).values
-        p05 = Rt.kthvalue(int(round(0.5 + 0.05 * num_samples)), dim=0).values
-        p95 = Rt.kthvalue(int(round(0.5 + 0.95 * num_samples)), dim=0).values
-        ax = axes[3]
+    # Plot the latent time series.
+    ax = axes[2]
+    for name, color in zip(["E", "I"], ["red", "blue"]):
+        value = samples[name]
+        median = value.median(dim=0).values
+        p05 = value.kthvalue(int(round(0.5 + 0.05 * num_samples)), dim=0).values
+        p95 = value.kthvalue(int(round(0.5 + 0.95 * num_samples)), dim=0).values
+        ax.fill_between(time, p05, p95, color=color, alpha=0.3)
+        ax.plot(time, median, color=color, label=name)
+    ax.set_yscale("log")
+    ax.set_ylim(0.5, None)
+    ax.set_ylabel("# people")
+    ax.legend(loc="best")
+
+    # Plot parameter time series.
+    for name, ax in zip(["Rt", "rho"], axes[3:]):
+        value = samples[name]
+        median = value.median(dim=0).values
+        p05 = value.kthvalue(int(round(0.5 + 0.05 * num_samples)), dim=0).values
+        p95 = value.kthvalue(int(round(0.5 + 0.95 * num_samples)), dim=0).values
         ax.fill_between(time, p05, p95, color="red", alpha=0.3, label="90% CI")
         ax.plot(time, median, "r-", label="median")
         ax.axhline(1, color="black", linestyle=":", lw=1, alpha=0.3)
-        ax.set_ylim(0, None)
-        ax.set_ylabel("Rt")
+        ax.set_ylabel(name)
         ax.legend(loc="best")
+    axes[3].set_ylim(0, None)
+    axes[4].set_ylim(0, 1)
 
-        ax.set_xlim(time[0], time[-1])
-        locator = mdates.AutoDateLocator(minticks=5, maxticks=15)
-        formatter = mdates.ConciseDateFormatter(locator)
-        ax.xaxis.set_major_locator(locator)
-        ax.xaxis.set_major_formatter(formatter)
-        plt.tight_layout()
-        plt.subplots_adjust(hspace=0)
+    ax.set_xlim(time[0], time[-1])
+    locator = mdates.AutoDateLocator(minticks=5, maxticks=15)
+    formatter = mdates.ConciseDateFormatter(locator)
+    ax.xaxis.set_major_locator(locator)
+    ax.xaxis.set_major_formatter(formatter)
+    plt.tight_layout()
+    plt.subplots_adjust(hspace=0)
 
     return samples
 
@@ -430,7 +443,7 @@ class Parser(argparse.ArgumentParser):
                 setattr(args, name, value)
 
         if args.warmup_steps is None:
-            args.warmup_steps = args.num_samples
+            args.warmup_steps = int(round(0.4 * args.num_samples))
 
         if args.double:
             if args.cuda:
