@@ -111,8 +111,7 @@ sigmoid = torch.distributions.transforms.SigmoidTransform()
 
 class Model(CompartmentalModel):
     def __init__(self, args, population, new_cases, new_deaths):
-        assert new_cases.dim() == 1
-        assert new_cases.shape == new_deaths.shape
+        assert len(new_cases) == len(new_deaths)
         duration = len(new_cases)
         compartments = ("S", "E", "I")  # R is implicit.
         super().__init__(compartments, duration, population)
@@ -144,7 +143,7 @@ class Model(CompartmentalModel):
 
         # Start with no local infections and initial Brownian motion.
         return {"S": self.population, "E": 0, "I": 0,
-                "R_motion": sigmoid.inv(torch.tensor(0.98)),
+                "R_motion": sigmoid.inv(torch.tensor(0.95)),
                 "rho_motion": torch.tensor(0.)}
 
     def transition(self, params, state, t):
@@ -192,6 +191,7 @@ class Model(CompartmentalModel):
         pyro.sample("new_deaths_{}".format(t),
                     binomial_dist(I2R, mu, overdispersion=od),
                     obs=self.new_deaths[t] if t_is_observed else None)
+
 
 def _item(x):
     if isinstance(x, torch.Tensor):
@@ -280,7 +280,9 @@ def predict(args, model, truth):
         p05 = value.kthvalue(int(round(0.5 + 0.05 * num_samples)), dim=0).values
         p95 = value.kthvalue(int(round(0.5 + 0.95 * num_samples)), dim=0).values
         ax.fill_between(time, p05, p95, color=color, alpha=0.3)
-        ax.plot(time, median, color=color, label=name)
+        ax.plot(time, median, color=color, label=name, lw=1)
+        if name in truth:
+            ax.plot(time, truth[name], color=color, linestyle="--")
     ax.set_yscale("log")
     ax.set_ylim(0.5, None)
     ax.set_ylabel("# people")
@@ -294,6 +296,8 @@ def predict(args, model, truth):
         p95 = value.kthvalue(int(round(0.5 + 0.95 * num_samples)), dim=0).values
         ax.fill_between(time, p05, p95, color="red", alpha=0.3, label="90% CI")
         ax.plot(time, median, "r-", label="median")
+        if name in truth:
+            ax.plot(time, truth[name], "k--", label="truth")
         ax.axhline(1, color="black", linestyle=":", lw=1, alpha=0.3)
         ax.set_ylabel(name)
         ax.legend(loc="best")
@@ -322,7 +326,7 @@ def evaluate(args, truth, model, samples):
         result[key]["mean"] = pred.mean().item()
         result[key]["std"] = pred.std(dim=0).mean().item()
 
-        if key in truth:
+        if key in ("new_cases", "new_deaths"):
             true = truth[key][..., model.duration:]
             for metric, fn in metrics:
                 result[key][metric] = fn(pred, true)
@@ -334,7 +338,11 @@ def evaluate(args, truth, model, samples):
     for name, value in covariates:
         mean = value.mean().item()
         std = value.std().item()
-        logging.info(f"{name} = {mean:0.3g} \u00B1 {std:0.3g}")
+        if name in truth:
+            true = truth[name]
+            logging.info(f"{name}: true = {true:0.3g}, pred = {mean:0.3g} \u00B1 {std:0.3g}")
+        else:
+            logging.info(f"{name} = {mean:0.3g} \u00B1 {std:0.3g}")
 
     if args.plot and args.infer == "mcmc":
         # Plot pairwise joint distributions for selected variables.
@@ -364,6 +372,16 @@ def main(args):
     result = {"file": __file__, "args": args, "argv": sys.argv}
 
     truth = load_data(args)
+    if args.generate:
+        # Generate data with same population and duration as real data.
+        model = Model(args, truth["population"],
+                      [None] * len(truth["new_cases"]),
+                      [None] * len(truth["new_cases"]))
+        truth.update(model.generate())
+        logging.info("Synthetic: {}".format(", ".join(
+            f"{name}={value:0.3g}"
+            for name, value in sorted(truth.items())
+            if isinstance(value, torch.Tensor) and value.numel() == 1)))
     result["data"] = {
         "population": truth["population"],
         "total_cases": truth["new_cases"].sum().item(),
@@ -396,8 +414,8 @@ def main(args):
 class Parser(argparse.ArgumentParser):
     def __init__(self):
         super().__init__(description="CompartmentalModel experiments")
-        self.add_argument("--county", default=0, type=int,
-                          help="which SF Bay Area county, 0-8")
+        self.add_argument("--county", default=0, type=int)
+        self.add_argument("--generate", action="store_true")
         self.add_argument("--start-date", default="2/1/20")
         self.add_argument("--intervene-date", default="3/1/20")
         self.add_argument("--report-lag", type=int, default=5)
