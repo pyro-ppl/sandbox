@@ -15,12 +15,14 @@ from timeit import default_timer
 import numpy as np
 import pandas as pd
 import torch
+from torch.nn.functional import pad
 
 import pyro
 import pyro.distributions as dist
 from pyro.contrib.epidemiology import CompartmentalModel, binomial_dist, infection_dist
 from pyro.contrib.forecast.evaluate import eval_crps, eval_mae, eval_rmse
 from pyro.infer.mcmc.util import summary
+from pyro.ops.tensor_utils import convolve
 from util import DATA, get_filename
 
 fmt = '%(process)d %(message)s'
@@ -28,18 +30,31 @@ logging.getLogger("pyro").handlers[0].setFormatter(logging.Formatter(fmt))
 logging.basicConfig(format=fmt, level=logging.INFO)
 
 
-# Bay area county populations.
+# Misc California county populations as of early 2020.
 counties = OrderedDict([
-    ("Santa Clara", 1763000),
-    ("Alameda", 1495000),
-    ("Contra Costa", 1038000),
-    ("San Francisco", 871000),
-    ("San Mateo", 712000),
-    ("Sonoma", 479000),
-    ("Solano", 412000),
-    ("Marin", 251000),
-    ("Napa", 135000),
+    # Bay Area counties.
+    ("Santa Clara", 1.763e6),
+    ("Alameda", 1.495e6),
+    ("Contra Costa", 1.038e6),
+    ("San Francisco", 871e3),
+    ("San Mateo", 712e3),
+    ("Sonoma", 479e3),
+    ("Solano", 412e3),
+    ("Marin", 251e3),
+    ("Napa", 135e3),
+    # Misc non Bay Area counties.
+    ("Los Angeles", 10.04e6),
+    ("Riverside", 2.471e6),
+    ("San Diego", 3.338e6),
+    ("Orange", 3.176e6),
+    ("San Bernardino", 2.18e6),
+    ("Imperial", 181e3),
+    ("Kern", 900e3),
+    ("Fresno", 999e3),
+    ("Tulare", 466e3),
+    ("Santa Barbara", 446e3),
 ])
+counties = OrderedDict((k, int(v)) for k, v in counties.items())
 
 
 def load_df(basename):
@@ -56,31 +71,34 @@ def load_data(args):
     cum_deaths_df = load_df("time_series_covid19_deaths_US.csv")
 
     # Convert to torch.Tensor.
-    cum_cases = []
-    cum_deaths = []
-    for county in counties:
-        i = list(cum_cases_df["Admin2"]).index(county)
-        cum_cases.append(cum_cases_df.iloc[i, 11:])
-        i = list(cum_deaths_df["Admin2"]).index(county)
-        cum_deaths.append(cum_deaths_df.iloc[i, 12:])
-    cum_cases = torch.tensor(cum_cases, dtype=torch.get_default_dtype()).T.contiguous()
-    cum_deaths = torch.tensor(cum_deaths, dtype=torch.get_default_dtype()).T.contiguous()
+    county = list(counties)[args.county]
+    population = counties[county]
+    i = list(cum_cases_df["Admin2"]).index(county)
+    cum_cases = cum_cases_df.iloc[i, 11:]
+    i = list(cum_deaths_df["Admin2"]).index(county)
+    cum_deaths = cum_deaths_df.iloc[i, 12:]
+    cum_cases = torch.tensor(cum_cases, dtype=torch.get_default_dtype()).contiguous()
+    cum_deaths = torch.tensor(cum_deaths, dtype=torch.get_default_dtype()).contiguous()
     assert cum_cases.shape == cum_deaths.shape
     start_date = datetime.datetime.strptime(cum_cases_df.columns[11], "%m/%d/%y")
 
-    # Convert from cumulative to difference data, and clamp to ensure positivity.
-    new_cases = (cum_cases[1:] - cum_cases[:-1]).clamp(min=0)
-    new_deaths = (cum_deaths[1:] - cum_deaths[:-1]).clamp(min=0)
-    start_date += datetime.timedelta(days=1)
+    # Distribute reported cases and deaths among previous few days.
+    if args.report_lag:
+        kernel = torch.ones(args.report_lag) / args.report_lag
+        cum_cases = convolve(cum_cases, kernel, mode="valid").round()
+        cum_deaths = convolve(cum_deaths, kernel, mode="valid").round()
 
-    # Truncate and select a single county.
+    # Convert from cumulative to difference data, and clamp to ensure positivity.
+    new_cases = (cum_cases - pad(cum_cases[:-1], (1, 0), value=0)).clamp(min=0)
+    new_deaths = (cum_deaths - pad(cum_deaths[:-1], (1, 0), value=0)).clamp(min=0)
+
+    # Truncate.
     truncate = (args.start_date - start_date).days
     assert truncate > 0, "start date is too early"
-    new_cases = new_cases[truncate:, args.county].contiguous()
-    new_deaths = new_deaths[truncate:, args.county].contiguous()
-    population = list(counties.values())[args.county]
+    new_cases = new_cases[truncate:].contiguous()
+    new_deaths = new_deaths[truncate:].contiguous()
     start_date += datetime.timedelta(days=truncate)
-    logging.info(f"Data shape = {tuple(new_cases.shape)}")
+    logging.info(f"{county} data shape = {tuple(new_cases.shape)}")
 
     return {"population": population,
             "new_cases": new_cases,
@@ -114,25 +132,19 @@ class Model(CompartmentalModel):
         rho = pyro.sample("rho", dist.Beta(10, 10))  # About 50% response rate.
         mu = pyro.sample("mu", dist.Beta(2, 100))  # About 2% mortality rate.
         drift = pyro.sample("drift", dist.LogNormal(-3, 1.))
-
-        # Assume observations are overdispersed and zero-inflated.
-        # od = pyro.sample("od", dist.Beta(2, 6))
-        od = 0.6  # FIXME fix overdispersion inference.
-        zi = pyro.sample("zi", dist.Beta(2, 6))
-
-        return R0, external_rate, tau_e, tau_i, rho, mu, drift, od, zi
+        od1 = pyro.sample("od1", dist.Uniform(0, 2))
+        od2 = pyro.sample("od2", dist.Uniform(0, 2))
+        return R0, external_rate, tau_e, tau_i, rho, mu, drift, od1, od2
 
     def initialize(self, params):
-        R0, external_rate, tau_e, tau_i, rho, mu, drift, od, zi = params
-
         # Start with no local infections and close to basic reproductive number.
         return {"S": self.population, "E": 0, "I": 0,
                 "R_factor": torch.tensor(0.98)}
 
     def transition(self, params, state, t):
-        R0, external_rate, tau_e, tau_i, rho, mu, drift, od, zi = params
+        R0, external_rate, tau_e, tau_i, rho, mu, drift, od1, od2 = params
 
-        # Assume drift is 4x larger during various interventions.
+        # Assume drift is 4x larger after various interventions begin.
         drift = drift * (0.25 + 0.75 * self.intervene[t])
 
         # Assume effective reproductive number Rt varies in time.
@@ -150,13 +162,11 @@ class Model(CompartmentalModel):
                                          num_susceptible=state["S"],
                                          num_infectious=state["I"] + I_external,
                                          population=self.population,
-                                         overdispersion=od))
+                                         overdispersion=od1))
         E2I = pyro.sample("E2I_{}".format(t),
-                          binomial_dist(state["E"], 1 / tau_e,
-                                        overdispersion=od))
+                          binomial_dist(state["E"], 1 / tau_e, overdispersion=od1))
         I2R = pyro.sample("I2R_{}".format(t),
-                          binomial_dist(state["I"], 1 / tau_i,
-                                        overdispersion=od))
+                          binomial_dist(state["I"], 1 / tau_i, overdispersion=od1))
 
         # Update compartments and heterogeneous variables.
         state["S"] = state["S"] - S2E
@@ -167,14 +177,10 @@ class Model(CompartmentalModel):
         # Condition on observations.
         t_is_observed = isinstance(t, slice) or t < self.duration
         pyro.sample("new_cases_{}".format(t),
-                    dist.ZeroInflatedDistribution(
-                        zi, binomial_dist(S2E, (rho / (1 - zi)).clamp(max=1),
-                                          overdispersion=od)),
+                    binomial_dist(S2E, rho, overdispersion=od2),
                     obs=self.new_cases[t] if t_is_observed else None)
         pyro.sample("new_deaths_{}".format(t),
-                    dist.ZeroInflatedDistribution(
-                        zi, binomial_dist(I2R, (mu / (1 - zi)).clamp(max=1),
-                                          overdispersion=od)),
+                    binomial_dist(I2R, mu, overdispersion=od2),
                     obs=self.new_deaths[t] if t_is_observed else None)
 
 
@@ -232,9 +238,9 @@ def predict(args, model, truth):
         axes[-1].text(shelter_in_place + datetime.timedelta(days=1), 0.2,
                       "shelter in place")
         for ax in axes:
-            ax.axvline(shelter_in_place, color="gray", linestyle=":", lw=1)
+            ax.axvline(shelter_in_place, color="black", linestyle=":", lw=1, alpha=0.3)
             ax.axvline(truth["start_date"] + datetime.timedelta(days=model.duration),
-                       color="gray", lw=1)
+                       color="black", lw=1, alpha=0.3)
         axes[0].set_title("{}, population {}".format(
             list(counties)[args.county], truth["population"]))
         time = np.array([truth["start_date"] + datetime.timedelta(days=t)
@@ -278,6 +284,7 @@ def predict(args, model, truth):
         ax = axes[3]
         ax.fill_between(time, p05, p95, color="red", alpha=0.3, label="90% CI")
         ax.plot(time, median, "r-", label="median")
+        ax.axhline(1, color="black", linestyle=":", lw=1, alpha=0.3)
         ax.set_ylim(0, None)
         ax.set_ylabel("Rt")
         ax.legend(loc="best")
@@ -382,6 +389,7 @@ class Parser(argparse.ArgumentParser):
                           help="which SF Bay Area county, 0-8")
         self.add_argument("--start-date", default="2/1/20")
         self.add_argument("--intervene-date", default="3/1/20")
+        self.add_argument("--report-lag", type=int, default=5)
         self.add_argument("--forecast", default=14, type=int)
         self.add_argument("--recovery-time", default=14.0, type=float)
         self.add_argument("--incubation-time", default=5.5, type=float)
