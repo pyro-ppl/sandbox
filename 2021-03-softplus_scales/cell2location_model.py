@@ -61,7 +61,8 @@ class TorchGamma(ExponentialFamily):
         sigma (float or Tensor): rate = 1 / scale of the distribution
             (often referred to as beta)
     """
-    arg_constraints = {"mu": constraints.positive, "sigma": constraints.positive}
+    arg_constraints = {"alpha": constraints.positive, "beta": constraints.positive,
+                       "mu": constraints.positive, "sigma": constraints.positive}
     support = constraints.positive
     has_rsample = True
     _mean_carrier_measure = 0
@@ -80,7 +81,8 @@ class TorchGamma(ExponentialFamily):
                 "Gamma requires alpha and beta OR mu and sigma (not all of them)"
             )
         elif alpha is not None and beta is not None:
-            pass
+            mu = alpha / beta
+            sigma = (alpha / beta.pow(2)).sqrt()
         elif mu is not None and sigma is not None:
             alpha = mu ** 2 / sigma ** 2
             beta = mu / sigma ** 2
@@ -89,6 +91,7 @@ class TorchGamma(ExponentialFamily):
                 "Gamma requires alpha and beta OR mu and sigma (define two)"
             )
         self.alpha, self.beta = broadcast_all(alpha, beta)
+        self.mu, self.sigma = broadcast_all(mu, sigma)
         if isinstance(alpha, Number) and isinstance(beta, Number):
             batch_shape = torch.Size()
         else:
@@ -453,11 +456,12 @@ class LocationModelLinearDependentWMultiExperiment(nn.Module):
     def __init__(self, **kwargs):
 
         super().__init__()
+        self.hist = []
         
         self.model = LocationModelLinearDependentWMultiExperimentModel(**kwargs)
         self.guide = AutoNormal(
             self.model.forward,
-            init_loc_fn=init_to_mean,
+            init_loc_fn=init_to_mean, init_scale=0.1,
             create_plates=self.model.create_plates,
         )
 
@@ -489,6 +493,8 @@ class LocationModelLinearDependentWMultiExperiment(nn.Module):
 
             if it % 500 == 0:
                 torch.cuda.empty_cache()
+                
+        self.hist = hist
 
             
 ### Build cell state signature matrix ###
