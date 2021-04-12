@@ -147,7 +147,7 @@ class LocationModelLinearDependentWMultiExperimentModel():
 
     def forward(self, x_data, idx, obs2sample):
 
-        #obs2sample = batch_index  # one_hot(batch_index, self.n_exper)
+        # obs2sample = batch_index  # one_hot(batch_index, self.n_exper)
 
         (
             obs_axis,
@@ -308,7 +308,10 @@ class LocationModelLinearDependentWMultiExperimentModel():
 
 
 class LocationModelLinearDependentWMultiExperiment():
-    def __init__(self, device='cpu', **kwargs):
+
+    def __init__(self, device='gpu',
+                 init_loc_fn=init_to_mean, init_scale=0.1,
+                 **kwargs):
 
         super().__init__()
         pyro.set_platform(platform=device)
@@ -318,8 +321,9 @@ class LocationModelLinearDependentWMultiExperiment():
         self._model = LocationModelLinearDependentWMultiExperimentModel(**kwargs)
         self._guide = AutoNormal(
             self.model.forward,
-            init_loc_fn=init_to_mean,
-            create_plates=self.model.create_plates,
+            init_loc_fn=init_loc_fn,
+            init_scale=init_scale,
+            create_plates=self.model.create_plates
         )
 
     @property
