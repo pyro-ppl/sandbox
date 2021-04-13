@@ -5,44 +5,19 @@ import pyro.optim as optim
 import torch
 from pyro.infer import SVI, Trace_ELBO
 from pyro.infer.autoguide import AutoNormal, init_to_mean
-from pyro.distributions.torch_distribution import TorchDistributionMixin
 from pyro.nn import PyroModule
 from tqdm.auto import tqdm
 
-#from scvi import _CONSTANTS
+from scvi import _CONSTANTS
 
 # from scvi.train import PyroTrainingPlan, Trainer
-#from scvi.distributions._negative_binomial import _convert_mean_disp_to_counts_logits
-#from scvi.module.base import PyroBaseModuleClass
+from scvi.distributions._negative_binomial import _convert_mean_disp_to_counts_logits
+from scvi.module.base import PyroBaseModuleClass
+import pandas as pd
+from scipy.sparse import csr_matrix
+
 # from scvi.nn import one_hot
 
-
-def _convert_mean_disp_to_counts_logits(mu, theta, eps=1e-6):
-    r"""
-    NB parameterizations conversion.
-
-    Parameters
-    ----------
-    mu
-        mean of the NB distribution.
-    theta
-        inverse overdispersion.
-    eps
-        constant used for numerical log stability. (Default value = 1e-6)
-
-    Returns
-    -------
-    type
-        the number of failures until the experiment is stopped
-        and the success probability.
-    """
-    if not (mu is None) == (theta is None):
-        raise ValueError(
-            "If using the mu/theta NB parameterization, both parameters must be specified"
-        )
-    logits = (mu + eps).log() - (theta + eps).log()
-    total_count = theta
-    return total_count, logits
 
 class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
     def __init__(
@@ -191,17 +166,13 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
                 subsample_size=self.batch_size,
                 subsample=idx,
             )
-        return [
-            obs_axis
-        ]
+        return [obs_axis]
 
     def forward(self, x_data, idx, obs2sample):
 
         # obs2sample = batch_index  # one_hot(batch_index, self.n_exper)
 
-        (
-            obs_axis,
-        ) = self.create_plates(x_data, idx, obs2sample)
+        (obs_axis,) = self.create_plates(x_data, idx, obs2sample)
 
         # =====================Gene expression level scaling m_g======================= #
         # Explains difference in sensitivity for each gene between single cell and spatial technology
@@ -216,7 +187,12 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
             dist.Gamma(self.m_g_rate * self.m_g_mean_var, self.m_g_mean_var),
         )
 
-        m_g = pyro.sample("m_g", dist.Gamma(m_g_alpha_hyp, m_g_beta_hyp).expand([1, self.n_vars]).to_event(2))
+        m_g = pyro.sample(
+            "m_g",
+            dist.Gamma(m_g_alpha_hyp, m_g_beta_hyp)
+            .expand([1, self.n_vars])
+            .to_event(2),
+        )
 
         # =====================Cell abundances w_sf======================= #
         # factorisation prior on w_sf models similarity in locations
@@ -227,34 +203,39 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
                 dist.Gamma(
                     self.N_cells_per_location * self.N_cells_mean_var_ratio,
                     self.N_cells_mean_var_ratio,
-                )
+                ),
             )
 
             y_s_groups_per_location = pyro.sample(
                 "y_s_groups_per_location",
-                dist.Gamma(self.Y_groups_per_location, self.ones)
+                dist.Gamma(self.Y_groups_per_location, self.ones),
             )
 
         # cell group loadings
         shape = self.ones_1_n_groups * y_s_groups_per_location / self.n_groups_tensor
-        rate = self.ones_1_n_groups / (
-            n_s_cells_per_location / y_s_groups_per_location
-        )
+        rate = self.ones_1_n_groups / (n_s_cells_per_location / y_s_groups_per_location)
         with obs_axis:
             z_sr_groups_factors = pyro.sample(
-                "z_sr_groups_factors", dist.Gamma(shape, rate)  # .to_event(1)#.expand([self.n_groups]).to_event(1)
+                "z_sr_groups_factors",
+                dist.Gamma(
+                    shape, rate
+                ),  # .to_event(1)#.expand([self.n_groups]).to_event(1)
             )  # (n_obs, n_groups)
 
         k_r_factors_per_groups = pyro.sample(
             "k_r_factors_per_groups",
-            dist.Gamma(self.factors_per_groups, self.ones).expand([self.n_groups, 1]).to_event(2)
+            dist.Gamma(self.factors_per_groups, self.ones)
+            .expand([self.n_groups, 1])
+            .to_event(2),
         )  # (self.n_groups, 1)
 
         c2f_shape = k_r_factors_per_groups / self.n_factors_tensor
 
         x_fr_group2fact = pyro.sample(
             "x_fr_group2fact",
-            dist.Gamma(c2f_shape, k_r_factors_per_groups).expand([self.n_groups, self.n_factors]).to_event(2)
+            dist.Gamma(c2f_shape, k_r_factors_per_groups)
+            .expand([self.n_groups, self.n_factors])
+            .to_event(2),
         )  # (self.n_groups, self.n_factors)
 
         with obs_axis:
@@ -264,7 +245,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
                 dist.Gamma(
                     w_sf_mu * self.w_sf_mean_var_ratio_tensor,
                     self.w_sf_mean_var_ratio_tensor,
-                )
+                ),
             )  # (self.n_obs, self.n_factors)
 
         # =====================Location-specific additive component======================= #
@@ -283,25 +264,30 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
             "s_g_gene_add_alpha_hyp",
             dist.Gamma(
                 self.gene_add_alpha_hyp_prior_alpha, self.gene_add_alpha_hyp_prior_beta
-            )
+            ),
         )
         s_g_gene_add_mean = pyro.sample(
             "s_g_gene_add_mean",
             dist.Gamma(
                 self.gene_add_mean_hyp_prior_alpha,
                 self.gene_add_mean_hyp_prior_beta,
-            ).expand([self.n_exper, 1]).to_event(2)
+            )
+            .expand([self.n_exper, 1])
+            .to_event(2),
         )  # (self.n_exper)
         s_g_gene_add_alpha_e_inv = pyro.sample(
-            "s_g_gene_add_alpha_e_inv", dist.Exponential(s_g_gene_add_alpha_hyp).expand([self.n_exper, 1]).to_event(2)
+            "s_g_gene_add_alpha_e_inv",
+            dist.Exponential(s_g_gene_add_alpha_hyp)
+            .expand([self.n_exper, 1])
+            .to_event(2),
         )  # (self.n_exper)
         s_g_gene_add_alpha_e = self.ones / s_g_gene_add_alpha_e_inv.pow(2)
 
         s_g_gene_add = pyro.sample(
             "s_g_gene_add",
-            dist.Gamma(
-                s_g_gene_add_alpha_e, s_g_gene_add_alpha_e / s_g_gene_add_mean
-            ).expand([self.n_exper, self.n_vars]).to_event(2)
+            dist.Gamma(s_g_gene_add_alpha_e, s_g_gene_add_alpha_e / s_g_gene_add_mean)
+            .expand([self.n_exper, self.n_vars])
+            .to_event(2),
         )  # (self.n_exper, n_vars)
 
         # =====================Gene-specific overdispersion ======================= #
@@ -309,10 +295,13 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
             "alpha_g_phi_hyp",
             dist.Gamma(
                 self.alpha_g_phi_hyp_prior_alpha, self.alpha_g_phi_hyp_prior_beta
-            )
+            ),
         )
         alpha_g_inverse = pyro.sample(
-            "alpha_g_inverse", dist.Exponential(alpha_g_phi_hyp).expand([self.n_exper, self.n_vars]).to_event(2)
+            "alpha_g_inverse",
+            dist.Exponential(alpha_g_phi_hyp)
+            .expand([self.n_exper, self.n_vars])
+            .to_event(2),
         )  # (self.n_exper, self.n_vars)
 
         # =====================Expected expression ======================= #
@@ -357,7 +346,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         )
 
 
-class LocationModelLinearDependentWMultiExperiment(torch.nn.Module):
+class LocationModelLinearDependentWMultiExperiment(PyroBaseModuleClass):
     def __init__(self, **kwargs):
 
         super().__init__()
@@ -414,10 +403,6 @@ class LocationModelLinearDependentWMultiExperiment(torch.nn.Module):
 
         self.hist = hist
 
-import pandas as pd
-from scipy.sparse import csr_matrix
-
-
 def get_cluster_averages(adata_ref, cluster_col):
     """
     :param adata_ref: AnnData object of reference single-cell dataset
@@ -433,12 +418,14 @@ def get_cluster_averages(adata_ref, cluster_col):
     averages_mat = np.zeros((1, adata_ref.raw.X.shape[1]))
 
     for c in all_clusters:
-        sparse_subset = csr_matrix(adata_ref.raw.X[np.isin(adata_ref.obs[cluster_col], c), :])
+        sparse_subset = csr_matrix(
+            adata_ref.raw.X[np.isin(adata_ref.obs[cluster_col], c), :]
+        )
         aver = sparse_subset.mean(0)
         averages_mat = np.concatenate((averages_mat, aver))
     averages_mat = averages_mat[1:, :].T
-    averages_df = pd.DataFrame(data=averages_mat,
-                               index=adata_ref.raw.var_names,
-                               columns=all_clusters)
+    averages_df = pd.DataFrame(
+        data=averages_mat, index=adata_ref.raw.var_names, columns=all_clusters
+    )
 
     return averages_df
