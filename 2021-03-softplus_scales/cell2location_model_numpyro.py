@@ -16,6 +16,7 @@ from numpyro.infer import init_to_median
 
 from functools import partial
 
+
 def init_to_mean(site=None):
     """
     Initialize to the prior mean; fallback to median if mean is undefined.
@@ -123,7 +124,7 @@ class LocationModelLinearDependentWMultiExperimentModel():
 
         self.ones = jnp.ones((1, 1))
         self.ones_scalar = jnp.ones(1)
-        self.ones_1_n_groups = jnp.ones([1,self.n_groups])
+        self.ones_1_n_groups = jnp.ones([1, self.n_groups])
 
     def create_plates(self, x_data, idx, obs2sample):
 
@@ -179,28 +180,30 @@ class LocationModelLinearDependentWMultiExperimentModel():
 
             y_s_groups_per_location = pyro.sample(
                 "y_s_groups_per_location",
-                dist.Gamma(self.Y_groups_per_location)
+                dist.Gamma(self.Y_groups_per_location, self.ones)
             )
 
         # cell group loadings
         shape = self.ones_1_n_groups * y_s_groups_per_location / self.n_groups_tensor
         rate = self.ones_1_n_groups / (
-                n_s_cells_per_location / y_s_groups_per_location
+            n_s_cells_per_location / y_s_groups_per_location
         )
         with obs_axis:
             z_sr_groups_factors = pyro.sample(
-                "z_sr_groups_factors", dist.Gamma(shape, rate)#.to_event(1)#.expand([self.n_groups]).to_event(1)
+                "z_sr_groups_factors", dist.Gamma(shape, rate)  # .to_event(1)#.expand([self.n_groups]).to_event(1)
             )  # (n_obs, n_groups)
 
         k_r_factors_per_groups = pyro.sample(
-            "k_r_factors_per_groups", dist.Gamma(self.factors_per_groups, self.ones).expand([self.n_groups, 1]).to_event(1)
+            "k_r_factors_per_groups",
+            dist.Gamma(self.factors_per_groups, self.ones).expand([self.n_groups, 1]).to_event(2)
         )  # (self.n_groups, 1)
 
         c2f_shape = k_r_factors_per_groups / self.n_factors_tensor
 
         x_fr_group2fact = pyro.sample(
-                  "x_fr_group2fact", dist.Gamma(c2f_shape, k_r_factors_per_groups).expand([self.n_groups, self.n_factors]).to_event(2)
-            )  # (self.n_groups, self.n_factors)
+            "x_fr_group2fact",
+            dist.Gamma(c2f_shape, k_r_factors_per_groups).expand([self.n_groups, self.n_factors]).to_event(2)
+        )  # (self.n_groups, self.n_factors)
 
         with obs_axis:
             w_sf_mu = z_sr_groups_factors @ x_fr_group2fact
@@ -231,23 +234,23 @@ class LocationModelLinearDependentWMultiExperimentModel():
             )
         )
         s_g_gene_add_mean = pyro.sample(
-                "s_g_gene_add_mean",
-                dist.Gamma(
-                    self.gene_add_mean_hyp_prior_alpha,
-                    self.gene_add_mean_hyp_prior_beta,
-                ).expand([self.n_exper, 1]).to_event(2)
-            ) # (self.n_exper)
+            "s_g_gene_add_mean",
+            dist.Gamma(
+                self.gene_add_mean_hyp_prior_alpha,
+                self.gene_add_mean_hyp_prior_beta,
+            ).expand([self.n_exper, 1]).to_event(2)
+        )  # (self.n_exper)
         s_g_gene_add_alpha_e_inv = pyro.sample(
-                "s_g_gene_add_alpha_e_inv", dist.Exponential(s_g_gene_add_alpha_hyp).expand([self.n_exper, 1]).to_event(2)
-            ) # (self.n_exper)
-        s_g_gene_add_alpha_e = self.ones / jnp.power(s_g_gene_add_alpha_e_inv, 2) # (self.n_exper)
+            "s_g_gene_add_alpha_e_inv", dist.Exponential(s_g_gene_add_alpha_hyp).expand([self.n_exper, 1]).to_event(2)
+        )  # (self.n_exper)
+        s_g_gene_add_alpha_e = self.ones / jnp.power(s_g_gene_add_alpha_e_inv, 2)  # (self.n_exper)
 
         s_g_gene_add = pyro.sample(
-                "s_g_gene_add",
-                dist.Gamma(
-                    s_g_gene_add_alpha_e, s_g_gene_add_alpha_e / s_g_gene_add_mean
-                ).expand([self.n_exper, self.n_vars]).to_event(2)
-            ) # (self.n_exper, n_vars)
+            "s_g_gene_add",
+            dist.Gamma(
+                s_g_gene_add_alpha_e, s_g_gene_add_alpha_e / s_g_gene_add_mean
+            ).expand([self.n_exper, self.n_vars]).to_event(2)
+        )  # (self.n_exper, n_vars)
 
         # =====================Gene-specific overdispersion ======================= #
         alpha_g_phi_hyp = pyro.sample(
@@ -257,8 +260,8 @@ class LocationModelLinearDependentWMultiExperimentModel():
             )
         )
         alpha_g_inverse = pyro.sample(
-                "alpha_g_inverse", dist.Exponential(alpha_g_phi_hyp).expand([self.n_exper, self.n_vars]).to_event(2)
-            )  # (self.n_exper, self.n_vars)
+            "alpha_g_inverse", dist.Exponential(alpha_g_phi_hyp).expand([self.n_exper, self.n_vars]).to_event(2)
+        )  # (self.n_exper, self.n_vars)
 
         # =====================Expected expression ======================= #
         # expected expression
@@ -405,7 +408,6 @@ def get_cluster_averages(adata_ref, cluster_col):
     return averages_df
 
 
-
 from jax import random
 from jax.experimental import stax
 import jax.numpy as jnp
@@ -414,6 +416,7 @@ from jax.random import PRNGKey
 import numpyro
 
 Log1p = stax.elementwise(jax.lax.log1p)
+
 
 def encoder(hidden_dim, z_dim):
     return stax.serial(
