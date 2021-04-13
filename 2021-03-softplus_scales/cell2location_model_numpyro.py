@@ -163,7 +163,7 @@ class LocationModelLinearDependentWMultiExperimentModel():
             dist.Gamma(self.m_g_rate * self.m_g_mean_var, self.m_g_mean_var),
         )
 
-        m_g = pyro.sample("m_g", dist.Gamma(m_g_alpha_hyp, m_g_beta_hyp).expand([1, self.n_vars]).to_event(2))
+        m_g = pyro.sample("m_g", dist.Gamma(m_g_alpha_hyp, m_g_beta_hyp).expand([1, self.n_vars]))
 
         # =====================Cell abundances w_sf======================= #
         # factorisation prior on w_sf models similarity in locations
@@ -179,7 +179,7 @@ class LocationModelLinearDependentWMultiExperimentModel():
 
             y_s_groups_per_location = pyro.sample(
                 "y_s_groups_per_location",
-                dist.Gamma(self.Y_groups_per_location)
+                dist.Gamma(self.Y_groups_per_location, self.ones)
             )
 
         # cell group loadings
@@ -189,17 +189,17 @@ class LocationModelLinearDependentWMultiExperimentModel():
         )
         with obs_axis:
             z_sr_groups_factors = pyro.sample(
-                "z_sr_groups_factors", dist.Gamma(shape, rate)#.to_event(1)#.expand([self.n_groups]).to_event(1)
+                "z_sr_groups_factors", dist.Gamma(shape, rate)
             )  # (n_obs, n_groups)
 
         k_r_factors_per_groups = pyro.sample(
-            "k_r_factors_per_groups", dist.Gamma(self.factors_per_groups, self.ones).expand([self.n_groups, 1]).to_event(1)
+            "k_r_factors_per_groups", dist.Gamma(self.factors_per_groups, self.ones).expand([self.n_groups, 1])
         )  # (self.n_groups, 1)
 
         c2f_shape = k_r_factors_per_groups / self.n_factors_tensor
 
         x_fr_group2fact = pyro.sample(
-                  "x_fr_group2fact", dist.Gamma(c2f_shape, k_r_factors_per_groups).expand([self.n_groups, self.n_factors]).to_event(2)
+                  "x_fr_group2fact", dist.Gamma(c2f_shape, k_r_factors_per_groups).expand([self.n_groups, self.n_factors])
             )  # (self.n_groups, self.n_factors)
 
         with obs_axis:
@@ -235,10 +235,10 @@ class LocationModelLinearDependentWMultiExperimentModel():
                 dist.Gamma(
                     self.gene_add_mean_hyp_prior_alpha,
                     self.gene_add_mean_hyp_prior_beta,
-                ).expand([self.n_exper, 1]).to_event(2)
+                ).expand([self.n_exper, 1])
             ) # (self.n_exper)
         s_g_gene_add_alpha_e_inv = pyro.sample(
-                "s_g_gene_add_alpha_e_inv", dist.Exponential(s_g_gene_add_alpha_hyp).expand([self.n_exper, 1]).to_event(2)
+                "s_g_gene_add_alpha_e_inv", dist.Exponential(s_g_gene_add_alpha_hyp).expand([self.n_exper, 1])
             ) # (self.n_exper)
         s_g_gene_add_alpha_e = self.ones / jnp.power(s_g_gene_add_alpha_e_inv, 2) # (self.n_exper)
 
@@ -246,7 +246,7 @@ class LocationModelLinearDependentWMultiExperimentModel():
                 "s_g_gene_add",
                 dist.Gamma(
                     s_g_gene_add_alpha_e, s_g_gene_add_alpha_e / s_g_gene_add_mean
-                ).expand([self.n_exper, self.n_vars]).to_event(2)
+                ).expand([self.n_exper, self.n_vars])
             ) # (self.n_exper, n_vars)
 
         # =====================Gene-specific overdispersion ======================= #
@@ -257,7 +257,7 @@ class LocationModelLinearDependentWMultiExperimentModel():
             )
         )
         alpha_g_inverse = pyro.sample(
-                "alpha_g_inverse", dist.Exponential(alpha_g_phi_hyp).expand([self.n_exper, self.n_vars]).to_event(2)
+                "alpha_g_inverse", dist.Exponential(alpha_g_phi_hyp).expand([self.n_exper, self.n_vars])
             )  # (self.n_exper, self.n_vars)
 
         # =====================Expected expression ======================= #
