@@ -346,7 +346,7 @@ class LocationModelLinearDependentWMultiExperimentModel(PyroModule):
         )
 
 
-class LocationModelLinearDependentWMultiExperiment(PyroBaseModuleClass):
+class LocationModelLinearDependentWMultiExperiment(torch.nn.Module):
     def __init__(self, **kwargs):
 
         super().__init__()
